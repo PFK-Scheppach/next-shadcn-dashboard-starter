@@ -123,6 +123,18 @@ To configure the environment for this project, refer to the `env.example.txt` fi
 
 You should now be able to access the application at http://localhost:3000.
 
+### Customizing the purchase message
+
+You can change the automatic thank you message sent to customers by using the
+helper functions exported from `src/lib/purchase-message.ts`:
+
+```ts
+import { setPurchaseMessage } from '@/lib/purchase-message';
+
+// Update the message that will be sent after a successful order
+setPurchaseMessage('Gracias por tu compra y por confiar en nosotros!');
+```
+
 > [!WARNING]
 > After cloning or forking the repository, be cautious when pulling or syncing with the latest changes, as this may result in breaking conflicts.
 
