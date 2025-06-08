@@ -39,9 +39,9 @@ _If you are looking for a React admin dashboard starter, here is the [repo](http
 | Pages                                                                                 | Specifications                                                                                                                                                                                                                                                          |
 | :------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Signup / Signin](https://go.clerk.com/ILdYhn7)      | Authentication with **Clerk** provides secure authentication and user management with multiple sign-in options including passwordless authentication, social logins, and enterprise SSO - all designed to enhance security while delivering a seamless user experience. |
-| [Dashboard (Overview)](https://shadcn-dashboard.kiranism.dev/dashboard)    | Cards with Recharts graphs for analytics. Parallel routes in the overview sections feature independent loading, error handling, and isolated component rendering. |
+| [Dashboard (Overview)](https://shadcn-dashboard.kiranism.dev/dashboard)    | Cards with Recharts graphs for analytics. Parallel routes in the overview sections feature independent loading, error handling, and isolated component rendering. Displays recent sales from both WooCommerce and Mercado Libre. |
 | [Product](https://shadcn-dashboard.kiranism.dev/dashboard/product)         | Tanstack tables with server side searching, filter, pagination by Nuqs which is a Type-safe search params state manager in nextjs                                                                                                                                       |
-| WooCommerce Sales | Displays recent orders from your WooCommerce store |
+| [WooCommerce Sales](/dashboard/woo-sales) | Displays recent orders from your WooCommerce store on a dedicated page. |
 | [Product/new](https://shadcn-dashboard.kiranism.dev/dashboard/product/new) | A Product Form with shadcn form (react-hook-form + zod).                                                                                                                                                                                                                |
 | [Profile](https://shadcn-dashboard.kiranism.dev/dashboard/profile)         | Clerk's full-featured account management UI that allows users to manage their profile and security settings                                                                                                                                                             |
 | [Kanban Board](https://shadcn-dashboard.kiranism.dev/dashboard/kanban)     | A Drag n Drop task management board with dnd-kit and zustand to persist state locally.                                                                                                                                                                                  |
@@ -75,6 +75,8 @@ src/
 ├── lib/ # Core utilities and configurations
 │ ├── auth/ # Auth configuration
 │ ├── db/ # Database utilities
+│ ├── mercadolibre.ts # Mercado Libre API logic
+│ ├── woocommerce.ts # WooCommerce API logic (if exists, otherwise actions)
 │ └── utils/ # Shared utilities
 │
 ├── hooks/ # Custom hooks
@@ -106,7 +108,18 @@ git clone https://github.com/Kiranism/next-shadcn-dashboard-starter.git
 
 ##### Environment Configuration Setup
 
-To configure the environment for this project, refer to the `env.example.txt` file. This file contains the necessary environment variables required for authentication, error tracking and connecting to WooCommerce.
+To configure the environment for this project, refer to the `env.example.txt` file. This file contains the necessary environment variables required for authentication, error tracking and connecting to WooCommerce and Mercado Libre.
+
+##### Obtaining MercadoLibre API credentials
+
+1. Crea o inicia sesión en tu cuenta de [MercadoLibre Developers](https://developers.mercadolibre.com.ar/).
+2. Registra una nueva aplicación y sigue el flujo de autorización para obtener un **Access Token**, un **Refresh Token**, tu **Client ID** y tu **Client Secret**.
+3. Para conocer tu **Seller ID** ejecuta:
+   ```bash
+   curl "https://api.mercadolibre.com/users/me?access_token=<TU_ACCESS_TOKEN>"
+   ```
+   El valor `id` de la respuesta es tu Seller ID.
+4. Copia todos esos valores en el archivo `.env.local` usando las variables `MERCADOLIBRE_ACCESS_TOKEN`, `MERCADOLIBRE_REFRESH_TOKEN`, `MERCADOLIBRE_CLIENT_ID`, `MERCADOLIBRE_CLIENT_SECRET` y `MERCADOLIBRE_REFRESH_TOKEN`.
 
 You should now be able to access the application at http://localhost:3000.
 
