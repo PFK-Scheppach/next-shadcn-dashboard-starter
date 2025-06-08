@@ -44,6 +44,8 @@ _If you are looking for a React admin dashboard starter, here is the [repo](http
 | [Product/new](https://shadcn-dashboard.kiranism.dev/dashboard/product/new) | A Product Form with shadcn form (react-hook-form + zod).                                                                                                                                                                                                                |
 | [Profile](https://shadcn-dashboard.kiranism.dev/dashboard/profile)         | Clerk's full-featured account management UI that allows users to manage their profile and security settings                                                                                                                                                             |
 | [Kanban Board](https://shadcn-dashboard.kiranism.dev/dashboard/kanban)     | A Drag n Drop task management board with dnd-kit and zustand to persist state locally.                                                                                                                                                                                  |
+| [MercadoLibre Messages](https://shadcn-dashboard.kiranism.dev/dashboard/mercadolibre/messages) | Lists conversation messages retrieved from the MercadoLibre API and allows replying.
+| [MercadoLibre Questions](https://shadcn-dashboard.kiranism.dev/dashboard/mercadolibre/questions) | Displays product questions received via MercadoLibre.
 | [Not Found](https://shadcn-dashboard.kiranism.dev/dashboard/notfound)      | Not Found Page Added in the root level                                                                                                                                                                                                                                  |
 | [Global Error](https://sentry.io/for/nextjs/?utm_source=github&utm_medium=paid-community&utm_campaign=general-fy26q2-nextjs&utm_content=github-banner-project-tryfree)           | A centralized error page that captures and displays errors across the application. Integrated with **Sentry** to log errors, provide detailed reports, and enable replay functionality for better debugging. |
 
@@ -101,6 +103,8 @@ git clone https://github.com/Kiranism/next-shadcn-dashboard-starter.git
 - Create a `.env.local` file by copying the example environment file:
   `cp env.example.txt .env.local`
 - Add the required environment variables to the `.env.local` file.
+- Include your MercadoLibre credentials in `.env.local`:
+  `MERCADOLIBRE_ACCESS_TOKEN` and `MERCADOLIBRE_USER_ID`.
 - `pnpm run dev`
 
 ##### Environment Configuration Setup
