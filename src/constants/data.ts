@@ -30,6 +30,14 @@ export const navItems: NavItem[] = [
     items: [] // No child items
   },
   {
+    title: 'Woo Sales',
+    url: '/dashboard/woo-sales',
+    icon: 'billing',
+    shortcut: ['w', 'w'],
+    isActive: false,
+    items: [] // No child items
+  },
+  {
     title: 'Account',
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'billing',
