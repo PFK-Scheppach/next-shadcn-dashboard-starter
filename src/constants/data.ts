@@ -65,6 +65,27 @@ export const navItems: NavItem[] = [
     shortcut: ['k', 'k'],
     isActive: false,
     items: [] // No child items
+  },
+  {
+    title: 'MercadoLibre',
+    url: '#',
+    icon: 'billing',
+    shortcut: ['m', 'l'],
+    isActive: false,
+    items: [
+      {
+        title: 'Messages',
+        url: '/dashboard/mercadolibre/messages',
+        icon: 'post',
+        shortcut: ['m', 'm']
+      },
+      {
+        title: 'Questions',
+        url: '/dashboard/mercadolibre/questions',
+        icon: 'help',
+        shortcut: ['m', 'q']
+      }
+    ]
   }
 ];
 
