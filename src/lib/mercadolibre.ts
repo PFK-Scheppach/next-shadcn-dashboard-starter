@@ -65,3 +65,44 @@ export async function fetchOrders(): Promise<MercadoLibreOrder[]> {
   const data = await res.json();
   return data.results as MercadoLibreOrder[];
 }
+
+export async function sendBuyerMessage(
+  orderId: number,
+  text: string
+): Promise<boolean> {
+  const sellerId = process.env.MERCADOLIBRE_SELLER_ID;
+  if (!sellerId) {
+    console.warn('MercadoLibre seller id not provided');
+    return false;
+  }
+
+  if (!currentToken) {
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) return false;
+  }
+
+  let url = `https://api.mercadolibre.com/messages/packs/${orderId}/sellers/${sellerId}?access_token=${currentToken}`;
+
+  let res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text })
+  });
+  if (res.status === 401) {
+    const newToken = await refreshAccessToken();
+    if (!newToken) return false;
+    url = `https://api.mercadolibre.com/messages/packs/${orderId}/sellers/${sellerId}?access_token=${newToken}`;
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+  }
+
+  if (!res.ok) {
+    console.error('Failed to send MercadoLibre message', await res.text());
+    return false;
+  }
+
+  return true;
+}

@@ -118,6 +118,16 @@ To configure the environment for this project, refer to the `env.example.txt` fi
    El valor `id` de la respuesta es tu Seller ID.
 4. Copia todos esos valores en el archivo `.env.local` usando las variables `MERCADOLIBRE_ACCESS_TOKEN`, `MERCADOLIBRE_REFRESH_TOKEN`, `MERCADOLIBRE_CLIENT_ID`, `MERCADOLIBRE_CLIENT_SECRET` y `MERCADOLIBRE_SELLER_ID`.
 
+##### Enviar mensajes automáticos al comprador
+
+Con las credenciales configuradas puedes usar la función `sendBuyerMessage` de `src/lib/mercadolibre.ts` para saludar al cliente tras una venta:
+
+```ts
+import { sendBuyerMessage } from '@/lib/mercadolibre'
+
+await sendBuyerMessage(orderId, '¡Gracias por tu compra!')
+```
+
 You should now be able to access the application at http://localhost:3000.
 
 > [!WARNING]
