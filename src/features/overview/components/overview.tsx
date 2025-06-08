@@ -12,11 +12,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AreaGraph } from './area-graph';
 import { BarGraph } from './bar-graph';
 import { PieGraph } from './pie-graph';
-import { RecentSales } from './recent-sales';
+import { RecentSales, type RecentSale } from './recent-sales';
+import { fetchOrders } from '@/lib/mercadolibre';
 import { IconTrendingUp, IconTrendingDown } from '@tabler/icons-react';
 import { Badge } from '@/components/ui/badge';
 
-export default function OverViewPage() {
+export default async function OverViewPage() {
+  const orders = await fetchOrders();
+  const sales: RecentSale[] = orders.map((o) => ({
+    name: o.buyer.nickname,
+    fallback: o.buyer.nickname.slice(0, 2).toUpperCase(),
+    amount: `+$${o.total_amount}`
+  }));
   return (
     <PageContainer>
       <div className='flex flex-1 flex-col space-y-2'>
@@ -132,7 +139,7 @@ export default function OverViewPage() {
                 <BarGraph />
               </div>
               <Card className='col-span-4 md:col-span-3'>
-                <RecentSales />
+                <RecentSales sales={sales} />
               </Card>
               <div className='col-span-4'>
                 <AreaGraph />
