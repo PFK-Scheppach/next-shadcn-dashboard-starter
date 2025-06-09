@@ -10,7 +10,7 @@ export const metadata = {
 };
 
 export default async function WooSalesPage() {
-  const orders = await getWooOrders();
+  const orders = await getWooOrders({ perPage: 50 });
   return (
     <PageContainer>
       <div className='flex flex-1 flex-col space-y-4'>

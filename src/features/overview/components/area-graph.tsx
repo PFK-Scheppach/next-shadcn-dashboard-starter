@@ -18,30 +18,34 @@ import {
   ChartTooltipContent
 } from '@/components/ui/chart';
 
-const chartData = [
-  { month: 'January', desktop: 186, mobile: 80 },
-  { month: 'February', desktop: 305, mobile: 200 },
-  { month: 'March', desktop: 237, mobile: 120 },
-  { month: 'April', desktop: 73, mobile: 190 },
-  { month: 'May', desktop: 209, mobile: 130 },
-  { month: 'June', desktop: 214, mobile: 140 }
-];
+export interface AreaGraphData {
+  month: string;
+  woocommerce: number;
+  mercadolibre: number;
+}
+
+const fallbackData: AreaGraphData[] = Array.from({ length: 6 }).map((_, i) => ({
+  month: new Date(
+    new Date().getFullYear(),
+    new Date().getMonth() - (5 - i)
+  ).toLocaleDateString('en-US', { month: 'long' }),
+  woocommerce: Math.round(Math.random() * 500),
+  mercadolibre: Math.round(Math.random() * 500)
+}));
 
 const chartConfig = {
-  visitors: {
-    label: 'Visitors'
-  },
-  desktop: {
-    label: 'Desktop',
+  woocommerce: {
+    label: 'WooCommerce',
     color: 'var(--primary)'
   },
-  mobile: {
-    label: 'Mobile',
+  mercadolibre: {
+    label: 'MercadoLibre',
     color: 'var(--primary)'
   }
 } satisfies ChartConfig;
 
-export function AreaGraph() {
+export function AreaGraph({ data }: { data?: AreaGraphData[] }) {
+  const chartData = data && data.length > 0 ? data : fallbackData;
   return (
     <Card className='@container/card'>
       <CardHeader>
@@ -63,27 +67,27 @@ export function AreaGraph() {
             }}
           >
             <defs>
-              <linearGradient id='fillDesktop' x1='0' y1='0' x2='0' y2='1'>
+              <linearGradient id='fillWoo' x1='0' y1='0' x2='0' y2='1'>
                 <stop
                   offset='5%'
-                  stopColor='var(--color-desktop)'
+                  stopColor='var(--color-woocommerce)'
                   stopOpacity={1.0}
                 />
                 <stop
                   offset='95%'
-                  stopColor='var(--color-desktop)'
+                  stopColor='var(--color-woocommerce)'
                   stopOpacity={0.1}
                 />
               </linearGradient>
-              <linearGradient id='fillMobile' x1='0' y1='0' x2='0' y2='1'>
+              <linearGradient id='fillML' x1='0' y1='0' x2='0' y2='1'>
                 <stop
                   offset='5%'
-                  stopColor='var(--color-mobile)'
+                  stopColor='var(--color-mercadolibre)'
                   stopOpacity={0.8}
                 />
                 <stop
                   offset='95%'
-                  stopColor='var(--color-mobile)'
+                  stopColor='var(--color-mercadolibre)'
                   stopOpacity={0.1}
                 />
               </linearGradient>
@@ -102,17 +106,17 @@ export function AreaGraph() {
               content={<ChartTooltipContent indicator='dot' />}
             />
             <Area
-              dataKey='mobile'
+              dataKey='mercadolibre'
               type='natural'
-              fill='url(#fillMobile)'
-              stroke='var(--color-mobile)'
+              fill='url(#fillML)'
+              stroke='var(--color-mercadolibre)'
               stackId='a'
             />
             <Area
-              dataKey='desktop'
+              dataKey='woocommerce'
               type='natural'
-              fill='url(#fillDesktop)'
-              stroke='var(--color-desktop)'
+              fill='url(#fillWoo)'
+              stroke='var(--color-woocommerce)'
               stackId='a'
             />
           </AreaChart>

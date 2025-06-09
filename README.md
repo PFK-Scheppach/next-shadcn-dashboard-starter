@@ -39,7 +39,7 @@ _If you are looking for a React admin dashboard starter, here is the [repo](http
 | Pages                                                                                 | Specifications                                                                                                                                                                                                                                                          |
 | :------------------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Signup / Signin](https://go.clerk.com/ILdYhn7)      | Authentication with **Clerk** provides secure authentication and user management with multiple sign-in options including passwordless authentication, social logins, and enterprise SSO - all designed to enhance security while delivering a seamless user experience. |
-| [Dashboard (Overview)](https://shadcn-dashboard.kiranism.dev/dashboard)    | Cards with Recharts graphs for analytics. Parallel routes in the overview sections feature independent loading, error handling, and isolated component rendering. Displays recent sales from both WooCommerce and Mercado Libre. |
+| [Dashboard (Overview)](https://shadcn-dashboard.kiranism.dev/dashboard)    | Cards with Recharts graphs for analytics. Parallel routes in the overview sections feature independent loading, error handling, and isolated component rendering. Displays live metrics and recent sales aggregated from WooCommerce and Mercado Libre. |
 | [Product](https://shadcn-dashboard.kiranism.dev/dashboard/product)         | Tanstack tables with server side searching, filter, pagination by Nuqs which is a Type-safe search params state manager in nextjs                                                                                                                                       |
 | [WooCommerce Sales](/dashboard/woo-sales) | Displays recent orders from your WooCommerce store on a dedicated page. |
 | [Product/new](https://shadcn-dashboard.kiranism.dev/dashboard/product/new) | A Product Form with shadcn form (react-hook-form + zod).                                                                                                                                                                                                                |
@@ -109,6 +109,7 @@ git clone https://github.com/Kiranism/next-shadcn-dashboard-starter.git
 ##### Environment Configuration Setup
 
 To configure the environment for this project, refer to the `env.example.txt` file. This file contains the necessary environment variables required for authentication, error tracking and connecting to WooCommerce and Mercado Libre.
+The dashboard metrics depend on these credentials to fetch orders and revenue statistics in real time.
 
 ##### Obtaining MercadoLibre API credentials
 

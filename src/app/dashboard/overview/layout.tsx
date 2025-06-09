@@ -10,8 +10,9 @@ import {
 } from '@/components/ui/card';
 import { IconTrendingDown, IconTrendingUp } from '@tabler/icons-react';
 import React from 'react';
+import { getDashboardData } from '@/features/overview/actions/get-dashboard-data';
 
-export default function OverViewLayout({
+export default async function OverViewLayout({
   sales,
   pie_stats,
   bar_stats,
@@ -22,6 +23,8 @@ export default function OverViewLayout({
   bar_stats: React.ReactNode;
   area_stats: React.ReactNode;
 }) {
+  const { metrics } = await getDashboardData();
+
   return (
     <PageContainer>
       <div className='flex flex-1 flex-col space-y-2'>
@@ -36,7 +39,7 @@ export default function OverViewLayout({
             <CardHeader>
               <CardDescription>Total Revenue</CardDescription>
               <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
-                $1,250.00
+                {`$${metrics.totalRevenue.toFixed(2)}`}
               </CardTitle>
               <CardAction>
                 <Badge variant='outline'>
@@ -58,7 +61,7 @@ export default function OverViewLayout({
             <CardHeader>
               <CardDescription>New Customers</CardDescription>
               <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
-                1,234
+                {metrics.newCustomers.toLocaleString()}
               </CardTitle>
               <CardAction>
                 <Badge variant='outline'>
@@ -80,7 +83,7 @@ export default function OverViewLayout({
             <CardHeader>
               <CardDescription>Active Accounts</CardDescription>
               <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
-                45,678
+                {metrics.totalOrders.toLocaleString()}
               </CardTitle>
               <CardAction>
                 <Badge variant='outline'>
@@ -102,12 +105,12 @@ export default function OverViewLayout({
             <CardHeader>
               <CardDescription>Growth Rate</CardDescription>
               <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
-                4.5%
+                N/A
               </CardTitle>
               <CardAction>
                 <Badge variant='outline'>
                   <IconTrendingUp />
-                  +4.5%
+                  +0%
                 </Badge>
               </CardAction>
             </CardHeader>

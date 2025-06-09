@@ -33,7 +33,15 @@ export interface WooOrder {
   }>;
 }
 
-export async function getWooOrders(): Promise<WooOrder[]> {
+export interface WooOrderOptions {
+  perPage?: number;
+  after?: string;
+  before?: string;
+}
+
+export async function getWooOrders(
+  options: WooOrderOptions = {}
+): Promise<WooOrder[]> {
   const base = process.env.WOOCOMMERCE_API_URL;
   const key = process.env.WOOCOMMERCE_CONSUMER_KEY;
   const secret = process.env.WOOCOMMERCE_CONSUMER_SECRET;
@@ -43,9 +51,20 @@ export async function getWooOrders(): Promise<WooOrder[]> {
     return [];
   }
 
+  const { perPage = 50, after, before } = options;
+
+  const params = new URLSearchParams({
+    per_page: String(Math.min(perPage, 100)),
+    orderby: 'date',
+    order: 'desc'
+  });
+
+  if (after) params.set('after', after);
+  if (before) params.set('before', before);
+
   const auth = Buffer.from(`${key}:${secret}`).toString('base64');
   const res = await fetch(
-    `${base.replace(/\/$/, '')}/wp-json/wc/v3/orders?per_page=5&orderby=date&order=desc`,
+    `${base.replace(/\/$/, '')}/wp-json/wc/v3/orders?${params.toString()}`,
     {
       headers: {
         Authorization: `Basic ${auth}`,
