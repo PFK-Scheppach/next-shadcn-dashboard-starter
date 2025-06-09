@@ -15,12 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { EnhancedMercadoLibreOrderList } from '@/features/mercadolibre/components/enhanced-order-list';
 import { MercadoLibreSalesAnalytics } from '@/features/mercadolibre/components/sales-analytics';
 import { DateRangeFilter } from '@/features/mercadolibre/components/date-range-filter';
-import {
-  fetchOrders,
-  fetchOrdersByDateRange,
-  getCurrentMonthRange,
-  type MercadoLibreOrder
-} from '@/lib/mercadolibre';
+import { type MercadoLibreOrder } from '@/lib/mercadolibre';
 import {
   ShoppingCart,
   TrendingUp,
@@ -38,13 +33,19 @@ function SalesContent() {
     loadInitialData();
   }, []);
 
+  const getCurrentMonthLabel = () =>
+    new Date().toLocaleDateString('es-ES', {
+      month: 'long',
+      year: 'numeric'
+    });
+
   const loadInitialData = async () => {
     setIsLoading(true);
     try {
-      const data = await fetchOrders();
-      setOrders(data);
-      const currentMonth = getCurrentMonthRange();
-      setCurrentDateRange(currentMonth.monthName);
+      const res = await fetch('/api/mercadolibre/orders');
+      const json = await res.json();
+      setOrders(json.orders || []);
+      setCurrentDateRange(getCurrentMonthLabel());
     } catch (error) {
       console.error('Error loading orders:', error);
     } finally {
@@ -59,8 +60,14 @@ function SalesContent() {
   ) => {
     setIsLoading(true);
     try {
-      const data = await fetchOrdersByDateRange(fromDate, toDate);
-      setOrders(data);
+      const params = new URLSearchParams();
+      if (fromDate && toDate) {
+        params.set('from', fromDate);
+        params.set('to', toDate);
+      }
+      const res = await fetch(`/api/mercadolibre/orders?${params.toString()}`);
+      const json = await res.json();
+      setOrders(json.orders || []);
       setCurrentDateRange(label || 'Rango personalizado');
     } catch (error) {
       console.error('Error loading orders for date range:', error);

@@ -24,8 +24,6 @@ import {
 import { EnhancedMessagesList } from '@/features/mercadolibre/components/enhanced-messages-list';
 import { DateRangeFilter } from '@/features/mercadolibre/components/date-range-filter';
 import {
-  getMessageThreads,
-  getMessageThreadsByDateRange,
   formatMessageDate,
   type MessageThread
 } from '@/features/mercadolibre/utils/messages';
@@ -43,13 +41,14 @@ export default function MessagesPage() {
   const loadMessages = async (fromDate?: Date, toDate?: Date) => {
     setIsLoading(true);
     try {
-      let messageThreads: MessageThread[];
+      const params = new URLSearchParams();
       if (fromDate && toDate) {
-        messageThreads = await getMessageThreadsByDateRange(fromDate, toDate);
-      } else {
-        messageThreads = await getMessageThreads();
+        params.set('from', fromDate.toISOString());
+        params.set('to', toDate.toISOString());
       }
-      setThreads(messageThreads);
+      const res = await fetch(`/api/mercadolibre/threads?${params.toString()}`);
+      const json = await res.json();
+      setThreads(json.threads || []);
     } catch (error) {
       console.error('Error loading messages:', error);
       setThreads([]);
