@@ -1,10 +1,18 @@
+export interface MercadoLibreShipping {
+  id: number;
+  status?: string;
+  tracking_number?: string;
+}
+
 export interface MercadoLibreOrder {
   id: number;
   date_created: string;
   total_amount: number;
+  status?: string;
   buyer: {
     nickname: string;
   };
+  shipping?: MercadoLibreShipping;
   pack_id?: number;
 }
 
@@ -233,6 +241,50 @@ export async function fetchOrdersByDateRange(
   } catch (error) {
     console.error('Error fetching MercadoLibre orders:', error);
     return allOrders;
+  }
+}
+
+export async function fetchOrderDetails(
+  orderId: number | string
+): Promise<MercadoLibreOrder | null> {
+  if (!currentToken) {
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) return null;
+  }
+
+  const url = `https://api.mercadolibre.com/orders/${orderId}`;
+
+  try {
+    let res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${currentToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (res.status === 401) {
+      const newToken = await refreshAccessToken();
+      if (!newToken) return null;
+      res = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${newToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+
+    if (!res.ok) {
+      console.error(
+        'Failed to fetch MercadoLibre order details',
+        await res.text()
+      );
+      return null;
+    }
+
+    return (await res.json()) as MercadoLibreOrder;
+  } catch (error) {
+    console.error('Error fetching MercadoLibre order details:', error);
+    return null;
   }
 }
 
