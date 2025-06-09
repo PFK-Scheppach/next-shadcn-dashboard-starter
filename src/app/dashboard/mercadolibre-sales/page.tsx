@@ -3,101 +3,239 @@
 import { useState, useEffect } from 'react';
 import PageContainer from '@/components/layout/page-container';
 import { Heading } from '@/components/ui/heading';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { fetchOrders, type MercadoLibreOrder } from '@/lib/mercadolibre';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
+import { EnhancedMercadoLibreOrderList } from '@/features/mercadolibre/components/enhanced-order-list';
+import { MercadoLibreSalesAnalytics } from '@/features/mercadolibre/components/sales-analytics';
+import { DateRangeFilter } from '@/features/mercadolibre/components/date-range-filter';
+import { type MercadoLibreOrder } from '@/lib/mercadolibre';
+import {
+  ShoppingCart,
+  TrendingUp,
+  Calendar,
+  Filter,
+  RefreshCw
+} from 'lucide-react';
 
 function SalesContent() {
   const [orders, setOrders] = useState<MercadoLibreOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [currentDateRange, setCurrentDateRange] = useState<string>('');
 
   useEffect(() => {
-    console.log('🚀 [MercadoLibre Sales] useEffect triggered');
-
-    const loadData = async () => {
-      try {
-        console.log('🔄 [MercadoLibre Sales] Starting to load initial data...');
-        const data = await fetchOrders();
-        console.log(`📦 [MercadoLibre Sales] Loaded ${data.length} orders`);
-        setOrders(data);
-        setError(null);
-      } catch (error) {
-        console.error('❌ [MercadoLibre Sales] Error loading orders:', error);
-        setError('Error cargando las órdenes');
-      } finally {
-        console.log('✅ [MercadoLibre Sales] Setting loading to false');
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
+    loadInitialData();
   }, []);
 
-  console.log('🔍 [MercadoLibre Sales] Render state:', {
-    isLoading,
-    ordersCount: orders.length,
-    error
+  const getCurrentMonthLabel = () =>
+    new Date().toLocaleDateString('es-ES', {
+      month: 'long',
+      year: 'numeric'
+    });
+
+  const loadInitialData = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/mercadolibre/orders');
+      const json = await res.json();
+      setOrders(json.orders || []);
+      setCurrentDateRange(getCurrentMonthLabel());
+    } catch (error) {
+      console.error('Error loading orders:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDateRangeChange = async (
+    fromDate?: string,
+    toDate?: string,
+    label?: string
+  ) => {
+    setIsLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (fromDate && toDate) {
+        params.set('from', fromDate);
+        params.set('to', toDate);
+      }
+      const res = await fetch(`/api/mercadolibre/orders?${params.toString()}`);
+      const json = await res.json();
+      setOrders(json.orders || []);
+      setCurrentDateRange(label || 'Rango personalizado');
+    } catch (error) {
+      console.error('Error loading orders for date range:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const totalSales = orders.reduce(
+    (total, order) => total + order.total_amount,
+    0
+  );
+  const thisMonth = new Date().getMonth();
+  const thisYear = new Date().getFullYear();
+  const monthlyOrders = orders.filter((order) => {
+    const orderDate = new Date(order.date_created);
+    return (
+      orderDate.getMonth() === thisMonth && orderDate.getFullYear() === thisYear
+    );
   });
+  const monthlySales = monthlyOrders.reduce(
+    (total, order) => total + order.total_amount,
+    0
+  );
 
   if (isLoading) {
-    return (
-      <div className='space-y-4'>
-        <Card>
-          <CardHeader>
-            <CardTitle>Cargando ventas...</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className='bg-muted h-20 animate-pulse rounded'></div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className='space-y-4'>
-        <Card>
-          <CardHeader>
-            <CardTitle className='text-red-600'>Error</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>{error}</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
+    return <LoadingSkeleton />;
   }
 
   return (
-    <div className='space-y-4'>
-      <Card>
-        <CardHeader>
-          <CardTitle>Ventas MercadoLibre</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>Total de órdenes: {orders.length}</p>
-          {orders.length > 0 && (
-            <div className='mt-4'>
-              <h3 className='font-semibold'>Últimas órdenes:</h3>
-              <ul className='mt-2 space-y-1'>
-                {orders.slice(0, 5).map((order) => (
-                  <li key={order.id} className='text-sm'>
-                    Orden #{order.id} - ${order.total_amount.toLocaleString()}
-                  </li>
-                ))}
-              </ul>
+    <>
+      {/* Current Date Range Badge */}
+      <div className='flex items-center justify-between'>
+        <Badge variant='outline' className='text-sm'>
+          <Calendar className='mr-2 h-4 w-4' />
+          Mostrando: {currentDateRange}
+        </Badge>
+        <Badge variant='secondary'>
+          {orders.length} {orders.length === 1 ? 'orden' : 'órdenes'}
+        </Badge>
+      </div>
+
+      {/* Date Range Filter */}
+      <DateRangeFilter
+        onDateRangeChange={handleDateRangeChange}
+        isLoading={isLoading}
+      />
+
+      <Separator />
+
+      {/* Stats Overview */}
+      <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+            <CardTitle className='text-sm font-medium'>
+              Ventas Totales
+            </CardTitle>
+            <TrendingUp className='text-muted-foreground h-4 w-4' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>
+              {new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP'
+              }).format(totalSales)}
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <p className='text-muted-foreground text-xs'>
+              En el período seleccionado
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+            <CardTitle className='text-sm font-medium'>Órdenes</CardTitle>
+            <ShoppingCart className='text-muted-foreground h-4 w-4' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>{orders.length}</div>
+            <p className='text-muted-foreground text-xs'>Total de órdenes</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+            <CardTitle className='text-sm font-medium'>Promedio</CardTitle>
+            <Filter className='text-muted-foreground h-4 w-4' />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold'>
+              {new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP'
+              }).format(orders.length > 0 ? totalSales / orders.length : 0)}
+            </div>
+            <p className='text-muted-foreground text-xs'>Por orden</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+            <CardTitle className='text-sm font-medium'>Estado</CardTitle>
+            <RefreshCw
+              className={`text-muted-foreground h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
+            />
+          </CardHeader>
+          <CardContent>
+            <div className='text-2xl font-bold text-green-600'>Activo</div>
+            <p className='text-muted-foreground text-xs'>API funcionando</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Separator />
+
+      {/* Analytics Section */}
+      {orders.length > 0 && (
+        <>
+          <div className='grid gap-4 md:grid-cols-2'>
+            <MercadoLibreSalesAnalytics orders={orders} />
+          </div>
+          <Separator />
+        </>
+      )}
+
+      {/* Enhanced Orders List */}
+      <EnhancedMercadoLibreOrderList orders={orders} />
+    </>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className='space-y-6'>
+      {/* Stats Skeleton */}
+      <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className='animate-pulse'>
+            <CardHeader className='space-y-0 pb-2'>
+              <div className='bg-muted h-4 w-24 rounded'></div>
+            </CardHeader>
+            <CardContent>
+              <div className='bg-muted mb-2 h-8 w-32 rounded'></div>
+              <div className='bg-muted h-3 w-20 rounded'></div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Content Skeleton */}
+      <div className='space-y-4'>
+        {[...Array(3)].map((_, i) => (
+          <Card key={i} className='animate-pulse'>
+            <CardHeader>
+              <div className='bg-muted h-6 w-1/3 rounded'></div>
+              <div className='bg-muted h-4 w-1/2 rounded'></div>
+            </CardHeader>
+            <CardContent>
+              <div className='bg-muted h-40 rounded'></div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
 
 export default function MercadoLibreSalesPage() {
-  console.log('🎯 [MercadoLibre Sales] Main component rendering');
-
   return (
     <PageContainer>
       <div className='flex flex-1 flex-col space-y-6'>
@@ -105,6 +243,7 @@ export default function MercadoLibreSalesPage() {
           title='Ventas MercadoLibre'
           description='Gestiona y analiza las ventas de tu tienda en MercadoLibre con filtros de fecha'
         />
+
         <SalesContent />
       </div>
     </PageContainer>

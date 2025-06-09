@@ -24,8 +24,6 @@ import {
 import { EnhancedQuestionsList } from '@/features/mercadolibre/components/enhanced-questions-list';
 import { DateRangeFilter } from '@/features/mercadolibre/components/date-range-filter';
 import {
-  getQuestions,
-  getQuestionsByDateRange,
   getUnansweredCount,
   getQuestionStatusColor,
   getQuestionStatusText,
@@ -45,13 +43,16 @@ export default function QuestionsPage() {
   const loadQuestions = async (fromDate?: Date, toDate?: Date) => {
     setIsLoading(true);
     try {
-      let questionsData: QuestionWithStatus[];
+      const params = new URLSearchParams();
       if (fromDate && toDate) {
-        questionsData = await getQuestionsByDateRange(fromDate, toDate);
-      } else {
-        questionsData = await getQuestions();
+        params.set('from', fromDate.toISOString());
+        params.set('to', toDate.toISOString());
       }
-      setQuestions(questionsData);
+      const res = await fetch(
+        `/api/mercadolibre/questions?${params.toString()}`
+      );
+      const json = await res.json();
+      setQuestions(json.questions || []);
     } catch (error) {
       console.error('Error loading questions:', error);
       setQuestions([]);
