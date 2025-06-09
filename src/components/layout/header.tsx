@@ -6,6 +6,7 @@ import SearchInput from '../search-input';
 import { UserNav } from './user-nav';
 import { ThemeSelector } from '../theme-selector';
 import { ModeToggle } from './ThemeToggle/theme-toggle';
+import { NotificationCenter } from '../notifications/notification-center';
 import CtaGithub from './cta-github';
 
 export default function Header() {
@@ -22,6 +23,7 @@ export default function Header() {
         <div className='hidden md:flex'>
           <SearchInput />
         </div>
+        <NotificationCenter />
         <UserNav />
         <ModeToggle />
         <ThemeSelector />
