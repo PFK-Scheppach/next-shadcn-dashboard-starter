@@ -112,7 +112,7 @@ To configure the environment for this project, refer to the `env.example.txt` fi
 
 ##### Obtaining MercadoLibre API credentials
 
-1. Crea o inicia sesión en tu cuenta de [MercadoLibre Developers](https://developers.mercadolibre.com.ar/).
+1. Crea o inicia sesión en tu cuenta de [MercadoLibre Developers](https://developers.mercadolibre.cl/).
 2. Registra una nueva aplicación y sigue el flujo de autorización para obtener un **Access Token**, un **Refresh Token**, tu **Client ID** y tu **Client Secret**.
 3. Para conocer tu **Seller ID** ejecuta:
    ```bash

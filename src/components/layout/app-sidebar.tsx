@@ -64,6 +64,7 @@ export default function AppSidebar() {
   const { isOpen } = useMediaQuery();
   const { user } = useUser();
   const router = useRouter();
+
   const handleSwitchTenant = (_tenantId: string) => {
     // Tenant switching functionality would be implemented here
   };
@@ -92,7 +93,6 @@ export default function AppSidebar() {
               return item?.items && item?.items?.length > 0 ? (
                 <Collapsible
                   key={item.title}
-                  asChild
                   defaultOpen={item.isActive}
                   className='group/collapsible'
                 >

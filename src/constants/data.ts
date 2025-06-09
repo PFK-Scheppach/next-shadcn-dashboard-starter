@@ -19,64 +19,47 @@ export const navItems: NavItem[] = [
     icon: 'dashboard',
     isActive: false,
     shortcut: ['d', 'd'],
-    items: [] // Empty array as there are no child items for Dashboard
+    items: []
   },
   {
-    title: 'Product',
+    title: 'Products',
     url: '/dashboard/product',
     icon: 'product',
     shortcut: ['p', 'p'],
     isActive: false,
-    items: [] // No child items
+    items: []
   },
   {
-    title: 'Woo Sales',
+    title: 'WooCommerce',
     url: '/dashboard/woo-sales',
     icon: 'billing',
     shortcut: ['w', 'w'],
     isActive: false,
-    items: [] // No child items
+    items: []
   },
   {
-    title: 'MercadoLibre',
-    url: '#',
-    icon: 'product',
-    isActive: false,
-    items: [
-      {
-        title: 'Mensajes',
-        url: '/dashboard/mercadolibre/messages',
-        icon: 'post',
-        shortcut: ['m', 'l']
-      },
-      {
-        title: 'Preguntas',
-        url: '/dashboard/mercadolibre/questions',
-        icon: 'help',
-        shortcut: ['q', 'l']
-      }
-    ]
-  },
-  {
-    title: 'Account',
-    url: '#', // Placeholder as there is no direct link for the parent
+    title: 'ML Ventas',
+    url: '/dashboard/mercadolibre-sales',
     icon: 'billing',
-    isActive: true,
-
-    items: [
-      {
-        title: 'Profile',
-        url: '/dashboard/profile',
-        icon: 'userPen',
-        shortcut: ['m', 'm']
-      },
-      {
-        title: 'Login',
-        shortcut: ['l', 'l'],
-        url: '/',
-        icon: 'login'
-      }
-    ]
+    shortcut: ['v', 'l'],
+    isActive: false,
+    items: []
+  },
+  {
+    title: 'ML Mensajes',
+    url: '/dashboard/mercadolibre/messages',
+    icon: 'post',
+    shortcut: ['m', 'l'],
+    isActive: false,
+    items: []
+  },
+  {
+    title: 'ML Preguntas',
+    url: '/dashboard/mercadolibre/questions',
+    icon: 'help',
+    shortcut: ['q', 'l'],
+    isActive: false,
+    items: []
   },
   {
     title: 'Kanban',
@@ -84,7 +67,21 @@ export const navItems: NavItem[] = [
     icon: 'kanban',
     shortcut: ['k', 'k'],
     isActive: false,
-    items: [] // No child items
+    items: []
+  },
+  {
+    title: 'Account',
+    url: '#',
+    icon: 'user',
+    isActive: false,
+    items: [
+      {
+        title: 'Profile',
+        url: '/dashboard/profile',
+        icon: 'userPen',
+        shortcut: ['p', 'r']
+      }
+    ]
   }
 ];
 

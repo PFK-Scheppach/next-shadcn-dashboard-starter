@@ -1,119 +1,291 @@
-import { Suspense } from 'react';
-import { Metadata } from 'next';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+'use client';
+
+import { useState, useEffect } from 'react';
+import PageContainer from '@/components/layout/page-container';
+import { Heading } from '@/components/ui/heading';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MessageCircle, Clock, User } from 'lucide-react';
-import { getMessageThreads, formatMessageDate } from '@/features/mercadolibre/utils/messages';
-import { MessageReplyForm } from '@/features/mercadolibre/components/message-reply-form';
+import { Separator } from '@/components/ui/separator';
+import {
+  MessageCircle,
+  Clock,
+  User,
+  AlertCircle,
+  TrendingUp,
+  Users,
+  Calendar
+} from 'lucide-react';
+import { EnhancedMessagesList } from '@/features/mercadolibre/components/enhanced-messages-list';
+import { DateRangeFilter } from '@/features/mercadolibre/components/date-range-filter';
+import {
+  getMessageThreads,
+  getMessageThreadsByDateRange,
+  formatMessageDate,
+  type MessageThread
+} from '@/features/mercadolibre/utils/messages';
 
-export const metadata: Metadata = {
-  title: 'Mensajes MercadoLibre | Dashboard',
-  description: 'Gestiona los mensajes de tus compradores en MercadoLibre',
-};
+export default function MessagesPage() {
+  const [threads, setThreads] = useState<MessageThread[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
+  const [selectedPeriod, setSelectedPeriod] = useState('current-month');
 
-async function MessagesList() {
-  const threads = await getMessageThreads();
+  useEffect(() => {
+    loadMessages();
+  }, []);
 
-  if (threads.length === 0) {
+  const loadMessages = async (fromDate?: Date, toDate?: Date) => {
+    setIsLoading(true);
+    try {
+      let messageThreads: MessageThread[];
+      if (fromDate && toDate) {
+        messageThreads = await getMessageThreadsByDateRange(fromDate, toDate);
+      } else {
+        messageThreads = await getMessageThreads();
+      }
+      setThreads(messageThreads);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      setThreads([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDateRangeChange = (
+    fromDate?: string,
+    toDate?: string,
+    label?: string
+  ) => {
+    const from = fromDate ? new Date(fromDate) : undefined;
+    const to = toDate ? new Date(toDate) : undefined;
+
+    setDateRange({ from, to });
+    setSelectedPeriod(label || 'custom');
+    loadMessages(from, to);
+  };
+
+  // Calculate stats
+  const totalMessages = threads.reduce(
+    (acc, thread) => acc + thread.messages.length,
+    0
+  );
+  const activeConversations = threads.filter(
+    (thread) =>
+      new Date().getTime() - new Date(thread.lastMessageDate).getTime() <
+      7 * 24 * 60 * 60 * 1000
+  ).length;
+  const uniqueBuyers = new Set(threads.map((thread) => thread.buyerUserId))
+    .size;
+
+  // Get recent activity
+  const recentThreads = threads
+    .sort(
+      (a, b) =>
+        new Date(b.lastMessageDate).getTime() -
+        new Date(a.lastMessageDate).getTime()
+    )
+    .slice(0, 3);
+
+  if (isLoading) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <MessageCircle className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold mb-2">No hay mensajes</h3>
-          <p className="text-muted-foreground text-center">
-            Cuando recibas mensajes de compradores, aparecerán aquí.
-          </p>
-        </CardContent>
-      </Card>
+      <PageContainer>
+        <div className='flex-1 space-y-6'>
+          <Heading
+            title='Mensajes MercadoLibre'
+            description='Gestiona las conversaciones con tus compradores y revisa el historial completo'
+          />
+          <LoadingSkeleton />
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {threads.map((thread) => (
-        <Card key={thread.orderId} className="border-l-4 border-l-blue-500">
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  {thread.buyerNickname}
+    <PageContainer>
+      <div className='flex-1 space-y-6'>
+        <Heading
+          title='Mensajes MercadoLibre'
+          description='Gestiona las conversaciones con tus compradores y revisa el historial completo'
+        />
+
+        {/* Date Range Filter */}
+        <DateRangeFilter
+          onDateRangeChange={handleDateRangeChange}
+          isLoading={isLoading}
+        />
+
+        {/* Filter Status Badge */}
+        <div className='flex items-center gap-2'>
+          <Badge variant='outline' className='flex items-center gap-1'>
+            <Calendar className='h-3 w-3' />
+            {selectedPeriod === 'current-month'
+              ? 'Mes actual'
+              : selectedPeriod === 'all-time'
+                ? 'Todo el tiempo'
+                : 'Período personalizado'}
+          </Badge>
+          <Badge variant='secondary'>
+            {threads.length} conversacion{threads.length !== 1 ? 'es' : ''}
+          </Badge>
+        </div>
+
+        {/* Stats Overview */}
+        <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+          <Card>
+            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+              <CardTitle className='text-sm font-medium'>
+                Total Mensajes
+              </CardTitle>
+              <MessageCircle className='text-muted-foreground h-4 w-4' />
+            </CardHeader>
+            <CardContent>
+              <div className='text-2xl font-bold'>{totalMessages}</div>
+              <p className='text-muted-foreground text-xs'>
+                En todas las conversaciones
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+              <CardTitle className='text-sm font-medium'>
+                Conversaciones
+              </CardTitle>
+              <TrendingUp className='text-muted-foreground h-4 w-4' />
+            </CardHeader>
+            <CardContent>
+              <div className='text-2xl font-bold'>{threads.length}</div>
+              <p className='text-muted-foreground text-xs'>
+                Total de hilos de conversación
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+              <CardTitle className='text-sm font-medium'>
+                Activas (7 días)
+              </CardTitle>
+              <Clock className='text-muted-foreground h-4 w-4' />
+            </CardHeader>
+            <CardContent>
+              <div className='text-2xl font-bold'>{activeConversations}</div>
+              <p className='text-muted-foreground text-xs'>
+                Conversaciones recientes
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
+              <CardTitle className='text-sm font-medium'>Compradores</CardTitle>
+              <Users className='text-muted-foreground h-4 w-4' />
+            </CardHeader>
+            <CardContent>
+              <div className='text-2xl font-bold'>{uniqueBuyers}</div>
+              <p className='text-muted-foreground text-xs'>
+                Compradores únicos
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Separator />
+
+        {/* Recent Activity */}
+        {recentThreads.length > 0 && (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle className='flex items-center gap-2'>
+                  <Clock className='h-5 w-5' />
+                  Actividad Reciente
                 </CardTitle>
-                <CardDescription className="flex items-center gap-2 mt-1">
-                  <Clock className="h-4 w-4" />
-                  Orden #{thread.orderId} • {formatMessageDate(thread.lastMessageDate)}
+                <CardDescription>
+                  Últimas conversaciones con actividad
                 </CardDescription>
-              </div>
-              <Badge variant="secondary">
-                {thread.messages.length} mensaje{thread.messages.length !== 1 ? 's' : ''}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="max-h-60 overflow-y-auto space-y-3">
-              {thread.messages.slice(-3).map((message, index) => (
-                <div
-                  key={message.id}
-                  className={`p-3 rounded-lg ${
-                    message.from.user_id === process.env.MERCADOLIBRE_SELLER_ID
-                      ? 'bg-blue-50 ml-8'
-                      : 'bg-gray-50 mr-8'
-                  }`}
-                >
-                  <p className="text-sm">{message.text}</p>
-                  <span className="text-xs text-muted-foreground">
-                    {formatMessageDate(message.date_created)}
-                  </span>
+              </CardHeader>
+              <CardContent>
+                <div className='space-y-3'>
+                  {recentThreads.map((thread) => (
+                    <div
+                      key={`${thread.packId}-${thread.buyerUserId}`}
+                      className='flex items-center justify-between rounded-lg border p-3'
+                    >
+                      <div className='flex items-center gap-3'>
+                        <User className='text-muted-foreground h-5 w-5' />
+                        <div>
+                          <p className='font-medium'>{thread.buyerNickname}</p>
+                          <p className='text-muted-foreground text-sm'>
+                            Pack #{thread.packId}
+                          </p>
+                        </div>
+                      </div>
+                      <div className='text-right'>
+                        <Badge variant='secondary'>
+                          {thread.messages.length} mensaje
+                          {thread.messages.length !== 1 ? 's' : ''}
+                        </Badge>
+                        <p className='text-muted-foreground mt-1 text-xs'>
+                          {formatMessageDate(thread.lastMessageDate)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-            
-            <MessageReplyForm
-              orderId={thread.orderId}
-              recipientName={thread.buyerNickname}
-              placeholder="Responder al comprador..."
-            />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+              </CardContent>
+            </Card>
+
+            <Separator />
+          </>
+        )}
+
+        {/* Enhanced Messages List */}
+        <EnhancedMessagesList initialThreads={threads} />
+      </div>
+    </PageContainer>
   );
 }
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-6">
-      {[...Array(3)].map((_, i) => (
-        <Card key={i} className="animate-pulse">
-          <CardHeader>
-            <div className="h-6 bg-muted rounded w-1/3"></div>
-            <div className="h-4 bg-muted rounded w-1/2"></div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="h-20 bg-muted rounded"></div>
-              <div className="h-32 bg-muted rounded"></div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+    <div className='space-y-6'>
+      {/* Stats Skeleton */}
+      <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className='animate-pulse'>
+            <CardHeader className='space-y-0 pb-2'>
+              <div className='bg-muted h-4 w-24 rounded'></div>
+            </CardHeader>
+            <CardContent>
+              <div className='bg-muted mb-2 h-8 w-16 rounded'></div>
+              <div className='bg-muted h-3 w-32 rounded'></div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Content Skeleton */}
+      <div className='space-y-4'>
+        {[...Array(3)].map((_, i) => (
+          <Card key={i} className='animate-pulse'>
+            <CardHeader>
+              <div className='bg-muted h-6 w-1/3 rounded'></div>
+              <div className='bg-muted h-4 w-1/2 rounded'></div>
+            </CardHeader>
+            <CardContent>
+              <div className='bg-muted h-32 rounded'></div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
-
-export default function MessagesPage() {
-  return (
-    <div className="flex-1 space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-bold">Mensajes MercadoLibre</h1>
-        <p className="text-muted-foreground">
-          Gestiona las conversaciones con tus compradores
-        </p>
-      </div>
-
-      <Suspense fallback={<LoadingSkeleton />}>
-        <MessagesList />
-      </Suspense>
-    </div>
-  );
-} 
