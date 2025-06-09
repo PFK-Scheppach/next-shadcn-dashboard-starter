@@ -1,11 +1,36 @@
 export interface WooOrder {
   id: number;
+  date_created: string;
+  status: string;
+  currency: string;
+  total: string;
   billing: {
     first_name: string;
     last_name: string;
     email: string;
+    address_1?: string;
+    city?: string;
+    state?: string;
+    postcode?: string;
+    country?: string;
   };
-  total: string;
+  shipping: {
+    first_name: string;
+    last_name: string;
+    address_1: string;
+    city: string;
+    state: string;
+    postcode: string;
+    country: string;
+  };
+  line_items: Array<{
+    id: number;
+    name: string;
+    product_id: number;
+    quantity: number;
+    price: string;
+    total: string;
+  }>;
 }
 
 export async function getWooOrders(): Promise<WooOrder[]> {
