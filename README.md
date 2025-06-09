@@ -119,7 +119,7 @@ To configure the environment for this project, refer to the `env.example.txt` fi
    curl "https://api.mercadolibre.com/users/me?access_token=<TU_ACCESS_TOKEN>"
    ```
    El valor `id` de la respuesta es tu Seller ID.
-4. Copia todos esos valores en el archivo `.env.local` usando las variables `MERCADOLIBRE_ACCESS_TOKEN`, `MERCADOLIBRE_REFRESH_TOKEN`, `MERCADOLIBRE_CLIENT_ID`, `MERCADOLIBRE_CLIENT_SECRET` y `MERCADOLIBRE_REFRESH_TOKEN`.
+4. Copia todos esos valores en el archivo `.env.local` usando las variables `MERCADOLIBRE_ACCESS_TOKEN`, `MERCADOLIBRE_REFRESH_TOKEN`, `MERCADOLIBRE_CLIENT_ID`, `MERCADOLIBRE_CLIENT_SECRET`, `MERCADOLIBRE_REFRESH_TOKEN`, `MERCADOLIBRE_SELLER_ID` y `MERCADOLIBRE_SITE_ID` (por ejemplo `MLC` para Chile).
 
 You should now be able to access the application at http://localhost:3000.
 
