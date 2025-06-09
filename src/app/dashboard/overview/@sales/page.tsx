@@ -23,7 +23,7 @@ export default async function Sales() {
 
   // Fetch orders from both sources concurrently
   const [wooOrders, mlOrders] = await Promise.all([
-    getWooOrders(),
+    getWooOrders({ perPage: 20 }),
     fetchOrders()
   ]);
 
