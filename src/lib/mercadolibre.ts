@@ -10,7 +10,7 @@ export interface MercadoLibreOrder {
 
 export interface MercadoLibreMessage {
   id: string;
-  text: string;
+  text: string | { plain: string };
   from: {
     user_id: string;
   };
@@ -31,6 +31,16 @@ export interface MercadoLibreMessage {
     source: string;
     moderation_date: string;
   };
+}
+
+export interface MercadoLibreThread {
+  id: string;
+  pack_id: number;
+  other_user: {
+    id: string;
+    nickname: string;
+  };
+  last_message: MercadoLibreMessage;
 }
 
 export interface MercadoLibreQuestion {
@@ -236,6 +246,82 @@ export async function fetchOrdersByDateRange(
   }
 }
 
+export async function fetchMessageThreads(
+  fromDate?: Date,
+  toDate?: Date,
+  limit = 50,
+  offset = 0
+): Promise<MercadoLibreThread[]> {
+  const sellerId = process.env.MERCADOLIBRE_SELLER_ID;
+  const siteId = process.env.MERCADOLIBRE_SITE_ID || 'MLC';
+  if (!sellerId) {
+    console.warn('MercadoLibre seller id not provided');
+    return [];
+  }
+
+  if (!currentToken) {
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) {
+      console.warn('No MercadoLibre token available');
+      return [];
+    }
+  }
+
+  let url =
+    `https://api.mercadolibre.com/messages/threads/search?seller=${sellerId}` +
+    `&site_id=${siteId}&tag=post_sale&limit=${limit}&offset=${offset}`;
+
+  if (fromDate) {
+    url += `&last_updated_from=${fromDate.toISOString()}`;
+  }
+  if (toDate) {
+    url += `&last_updated_to=${toDate.toISOString()}`;
+  }
+
+  try {
+    const res = await throttledApiCall(url, {
+      headers: {
+        Authorization: `Bearer ${currentToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (res.status === 401) {
+      const newToken = await refreshAccessToken();
+      if (!newToken) return [];
+
+      const retryRes = await throttledApiCall(url, {
+        headers: {
+          Authorization: `Bearer ${newToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!retryRes.ok) {
+        console.error(
+          'Failed to fetch MercadoLibre threads after token refresh',
+          await retryRes.text()
+        );
+        return [];
+      }
+
+      const data = await retryRes.json();
+      return data.threads || [];
+    }
+
+    if (!res.ok) {
+      console.error('Failed to fetch MercadoLibre threads', await res.text());
+      return [];
+    }
+
+    const data = await res.json();
+    return data.threads || [];
+  } catch (error) {
+    console.error('Error fetching MercadoLibre threads:', error);
+    return [];
+  }
+}
+
 export async function sendBuyerMessage(
   packId: number,
   text: string,
@@ -269,7 +355,9 @@ export async function sendBuyerMessage(
           to: {
             user_id: buyerUserId
           },
-          text: text.trim()
+          text: {
+            plain: text.trim()
+          }
         })
       }
     );
@@ -293,7 +381,9 @@ export async function sendBuyerMessage(
             to: {
               user_id: buyerUserId
             },
-            text: text.trim()
+            text: {
+              plain: text.trim()
+            }
           })
         }
       );
@@ -382,7 +472,12 @@ export async function fetchMessagesForPack(
       }
 
       const data = await retryRes.json();
-      return data.messages || [];
+      const msgs: MercadoLibreMessage[] = data.messages || [];
+      return msgs.map((m) =>
+        typeof m.text === 'object' && 'plain' in m.text
+          ? { ...m, text: (m.text as any).plain }
+          : m
+      );
     }
 
     if (!res.ok) {
@@ -403,7 +498,12 @@ export async function fetchMessagesForPack(
     }
 
     const data = await res.json();
-    return data.messages || [];
+    const msgs: MercadoLibreMessage[] = data.messages || [];
+    return msgs.map((m) =>
+      typeof m.text === 'object' && 'plain' in m.text
+        ? { ...m, text: (m.text as any).plain }
+        : m
+    );
   } catch (error) {
     console.error('Error fetching MercadoLibre messages for pack:', error);
     return [];

@@ -1,66 +1,27 @@
 import {
-  fetchMessages,
-  fetchMessagesByDateRange,
+  fetchMessageThreads,
   sendBuyerMessage,
-  type MercadoLibreMessage
+  type MercadoLibreThread
 } from '@/lib/mercadolibre';
 
 export interface MessageThread {
   packId: number;
   buyerUserId: string;
   buyerNickname: string;
-  messages: MercadoLibreMessage[];
   lastMessageDate: string;
+  messages: MercadoLibreThread['last_message'][];
 }
 
 export async function getMessageThreads(): Promise<MessageThread[]> {
   try {
-    const messages = await fetchMessages();
-
-    // Group messages by pack ID and buyer
-    const threadsMap = new Map<string, MessageThread>();
-
-    messages.forEach((message) => {
-      // Create a unique key for each conversation (pack + buyer)
-      const key = `${message.from.user_id}_${message.to.user_id}`;
-      const isFromSeller =
-        message.from.user_id === process.env.MERCADOLIBRE_SELLER_ID;
-      const buyerUserId = isFromSeller
-        ? message.to.user_id
-        : message.from.user_id;
-
-      // Extract pack ID from message resources (new API structure)
-      const packId = extractPackIdFromMessage(message);
-      if (!packId) return;
-
-      if (!threadsMap.has(key)) {
-        threadsMap.set(key, {
-          packId,
-          buyerUserId,
-          buyerNickname: 'Cliente', // This would need to be fetched from user details if needed
-          messages: [],
-          lastMessageDate: message.message_date.created
-        });
-      }
-
-      const thread = threadsMap.get(key)!;
-      thread.messages.push(message);
-
-      // Update last message date if this message is newer
-      if (
-        new Date(message.message_date.created) >
-        new Date(thread.lastMessageDate)
-      ) {
-        thread.lastMessageDate = message.message_date.created;
-      }
-    });
-
-    // Sort threads by last message date (newest first)
-    return Array.from(threadsMap.values()).sort(
-      (a, b) =>
-        new Date(b.lastMessageDate).getTime() -
-        new Date(a.lastMessageDate).getTime()
-    );
+    const threads = await fetchMessageThreads();
+    return threads.map((t) => ({
+      packId: t.pack_id,
+      buyerUserId: t.other_user.id,
+      buyerNickname: t.other_user.nickname || 'Cliente',
+      lastMessageDate: t.last_message.message_date.created,
+      messages: [t.last_message]
+    }));
   } catch (error) {
     console.error('Error getting message threads:', error);
     return [];
@@ -72,52 +33,14 @@ export async function getMessageThreadsByDateRange(
   toDate?: Date
 ): Promise<MessageThread[]> {
   try {
-    const messages = await fetchMessagesByDateRange(fromDate, toDate);
-
-    // Group messages by pack ID and buyer
-    const threadsMap = new Map<string, MessageThread>();
-
-    messages.forEach((message) => {
-      // Create a unique key for each conversation (pack + buyer)
-      const key = `${message.from.user_id}_${message.to.user_id}`;
-      const isFromSeller =
-        message.from.user_id === process.env.MERCADOLIBRE_SELLER_ID;
-      const buyerUserId = isFromSeller
-        ? message.to.user_id
-        : message.from.user_id;
-
-      // Extract pack ID from message resources (new API structure)
-      const packId = extractPackIdFromMessage(message);
-      if (!packId) return;
-
-      if (!threadsMap.has(key)) {
-        threadsMap.set(key, {
-          packId,
-          buyerUserId,
-          buyerNickname: 'Cliente', // This would need to be fetched from user details if needed
-          messages: [],
-          lastMessageDate: message.message_date.created
-        });
-      }
-
-      const thread = threadsMap.get(key)!;
-      thread.messages.push(message);
-
-      // Update last message date if this message is newer
-      if (
-        new Date(message.message_date.created) >
-        new Date(thread.lastMessageDate)
-      ) {
-        thread.lastMessageDate = message.message_date.created;
-      }
-    });
-
-    // Sort threads by last message date (newest first)
-    return Array.from(threadsMap.values()).sort(
-      (a, b) =>
-        new Date(b.lastMessageDate).getTime() -
-        new Date(a.lastMessageDate).getTime()
-    );
+    const threads = await fetchMessageThreads(fromDate, toDate);
+    return threads.map((t) => ({
+      packId: t.pack_id,
+      buyerUserId: t.other_user.id,
+      buyerNickname: t.other_user.nickname || 'Cliente',
+      lastMessageDate: t.last_message.message_date.created,
+      messages: [t.last_message]
+    }));
   } catch (error) {
     console.error('Error getting message threads by date range:', error);
     return [];
@@ -134,34 +57,6 @@ export async function sendMessage(
   } catch (error) {
     console.error('Error sending message:', error);
     return false;
-  }
-}
-
-function extractPackIdFromMessage(message: MercadoLibreMessage): number | null {
-  try {
-    // Check if message has resources array with pack information
-    if ('message_resources' in message) {
-      const resources = (message as any).message_resources;
-      if (Array.isArray(resources)) {
-        const packResource = resources.find((r: any) => r.name === 'packs');
-        if (packResource && packResource.id) {
-          return parseInt(packResource.id);
-        }
-      }
-    }
-
-    // Fallback: try to extract from message ID or generate a default
-    if (message.id) {
-      // Try to find a numeric pattern in the message ID
-      const numericMatch = message.id.match(/\d+/);
-      if (numericMatch) {
-        return parseInt(numericMatch[0]);
-      }
-    }
-
-    return null;
-  } catch {
-    return null;
   }
 }
 
@@ -183,6 +78,8 @@ export function formatMessageDate(dateString: string): string {
   }
 }
 
-export function isMessageFromSeller(message: MercadoLibreMessage): boolean {
+export function isMessageFromSeller(
+  message: MercadoLibreThread['last_message']
+): boolean {
   return message.from.user_id === process.env.MERCADOLIBRE_SELLER_ID;
 }
