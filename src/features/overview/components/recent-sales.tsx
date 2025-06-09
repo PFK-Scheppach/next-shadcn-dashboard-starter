@@ -7,6 +7,14 @@ import {
   CardDescription
 } from '@/components/ui/card';
 
+export interface RecentSale {
+  name: string;
+  email?: string;
+  avatar?: string;
+  fallback: string;
+  amount: string;
+}
+
 const salesData = [
   {
     name: 'Olivia Martin',
@@ -45,16 +53,26 @@ const salesData = [
   }
 ];
 
-export function RecentSales() {
+interface RecentSalesProps {
+  sales?: RecentSale[];
+}
+
+export function RecentSales({ sales }: RecentSalesProps) {
+  const displaySales = sales && sales.length > 0 ? sales : salesData;
+
   return (
     <Card className='h-full'>
       <CardHeader>
         <CardTitle>Recent Sales</CardTitle>
-        <CardDescription>You made 265 sales this month.</CardDescription>
+        <CardDescription>
+          {sales && sales.length > 0
+            ? `You have ${sales.length} recent sales.`
+            : 'You made 265 sales this month.'}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <div className='space-y-8'>
-          {salesData.map((sale, index) => (
+          {displaySales.map((sale, index) => (
             <div key={index} className='flex items-center'>
               <Avatar className='h-9 w-9'>
                 <AvatarImage src={sale.avatar} alt='Avatar' />
@@ -62,7 +80,9 @@ export function RecentSales() {
               </Avatar>
               <div className='ml-4 space-y-1'>
                 <p className='text-sm leading-none font-medium'>{sale.name}</p>
-                <p className='text-muted-foreground text-sm'>{sale.email}</p>
+                <p className='text-muted-foreground text-sm'>
+                  {sale.email || 'No email'}
+                </p>
               </div>
               <div className='ml-auto font-medium'>{sale.amount}</div>
             </div>
