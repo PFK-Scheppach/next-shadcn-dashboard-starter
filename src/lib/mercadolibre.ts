@@ -6,6 +6,13 @@ export interface MercadoLibreOrder {
     nickname: string;
   };
   pack_id?: number;
+  status?: string;
+  shipping?: {
+    tracking_number?: string;
+    status?: string;
+    [key: string]: any;
+  };
+  [key: string]: any;
 }
 
 export interface MercadoLibreMessage {
