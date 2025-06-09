@@ -843,3 +843,62 @@ export async function answerQuestion(
     return false;
   }
 }
+
+export async function fetchOrderDetails(
+  orderId: string
+): Promise<MercadoLibreOrder | null> {
+  if (!currentToken) {
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) {
+      console.warn('No MercadoLibre token available');
+      return null;
+    }
+  }
+
+  try {
+    const res = await throttledApiCall(
+      `https://api.mercadolibre.com/orders/${orderId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${currentToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (res.status === 401) {
+      const newToken = await refreshAccessToken();
+      if (!newToken) return null;
+
+      const retryRes = await throttledApiCall(
+        `https://api.mercadolibre.com/orders/${orderId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${newToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (!retryRes.ok) {
+        console.error(
+          'Failed to fetch order details after token refresh',
+          await retryRes.text()
+        );
+        return null;
+      }
+
+      return await retryRes.json();
+    }
+
+    if (!res.ok) {
+      console.error('Failed to fetch order details', await res.text());
+      return null;
+    }
+
+    return await res.json();
+  } catch (error) {
+    console.error('Error fetching order details:', error);
+    return null;
+  }
+}
