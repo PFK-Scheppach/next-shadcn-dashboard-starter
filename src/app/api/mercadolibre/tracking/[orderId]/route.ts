@@ -3,9 +3,9 @@ import { fetchOrderDetails } from '@/lib/mercadolibre';
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
-  const orderId = params.orderId;
+  const { orderId } = await params;
   if (!orderId) {
     return NextResponse.json({ error: 'orderId is required' }, { status: 400 });
   }
