@@ -127,6 +127,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-// Export the notification store for use in other API routes
-export { notificationStore };

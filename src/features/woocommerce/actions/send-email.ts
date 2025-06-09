@@ -194,7 +194,7 @@ export async function sendOrderEmail(
   }
 
   try {
-    const transporter = nodemailer.createTransporter(config);
+    const transporter = nodemailer.createTransport(config);
 
     // Verify transporter configuration
     await transporter.verify();
