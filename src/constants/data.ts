@@ -62,6 +62,14 @@ export const navItems: NavItem[] = [
     items: []
   },
   {
+    title: 'ML Clientes',
+    url: '/dashboard/mercadolibre/customers',
+    icon: 'user2',
+    shortcut: ['c', 'l'],
+    isActive: false,
+    items: []
+  },
+  {
     title: 'Kanban',
     url: '/dashboard/kanban',
     icon: 'kanban',
