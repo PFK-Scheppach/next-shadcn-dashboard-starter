@@ -21,75 +21,102 @@ export const defaultTemplates: PurchaseMessageTemplate[] = [
   {
     id: 'welcome',
     name: 'Mensaje de Bienvenida',
-    content: '¡Hola {{buyerName}}! 👋 Gracias por tu compra de {{productName}}. Tu pedido #{{orderNumber}} está siendo procesado. Te mantendremos informado sobre el estado de tu envío.',
+    content:
+      '¡Hola {{buyerName}}! 👋 Gracias por tu compra de {{productName}}. Tu pedido #{{orderNumber}} está siendo procesado. Te mantendremos informado sobre el estado de tu envío.',
     variables: ['buyerName', 'productName', 'orderNumber'],
     isDefault: true
   },
   {
     id: 'confirmation',
     name: 'Confirmación de Pago',
-    content: '¡Perfecto {{buyerName}}! ✅ Hemos confirmado el pago de tu pedido #{{orderNumber}} por ${{amount}}. Comenzaremos a preparar tu envío inmediatamente.',
+    content:
+      '¡Perfecto {{buyerName}}! ✅ Hemos confirmado el pago de tu pedido #{{orderNumber}} por ${{amount}}. Comenzaremos a preparar tu envío inmediatamente.',
     variables: ['buyerName', 'orderNumber', 'amount'],
     isDefault: true
   },
   {
     id: 'shipping',
     name: 'Envío Despachado',
-    content: '📦 ¡Tu pedido ya está en camino {{buyerName}}! Tu {{productName}} ha sido despachado y llegará aproximadamente el {{estimatedDelivery}}. Código de seguimiento: {{trackingNumber}}',
-    variables: ['buyerName', 'productName', 'estimatedDelivery', 'trackingNumber'],
+    content:
+      '📦 ¡Tu pedido ya está en camino {{buyerName}}! Tu {{productName}} ha sido despachado y llegará aproximadamente el {{estimatedDelivery}}. Código de seguimiento: {{trackingNumber}}',
+    variables: [
+      'buyerName',
+      'productName',
+      'estimatedDelivery',
+      'trackingNumber'
+    ],
     isDefault: true
   },
   {
     id: 'followup',
     name: 'Seguimiento Post-Venta',
-    content: 'Hola {{buyerName}}, esperamos que hayas recibido tu {{productName}} en perfectas condiciones. Si tienes alguna pregunta o necesitas ayuda, no dudes en contactarnos. ¡Gracias por confiar en nosotros! 🙏',
+    content:
+      'Hola {{buyerName}}, esperamos que hayas recibido tu {{productName}} en perfectas condiciones. Si tienes alguna pregunta o necesitas ayuda, no dudes en contactarnos. ¡Gracias por confiar en nosotros! 🙏',
     variables: ['buyerName', 'productName'],
     isDefault: true
   }
 ];
 
 // Funciones para gestionar plantillas
-export function getTemplate(templateId: string): PurchaseMessageTemplate | undefined {
-  return defaultTemplates.find(template => template.id === templateId);
+export function getTemplate(
+  templateId: string
+): PurchaseMessageTemplate | undefined {
+  return defaultTemplates.find((template) => template.id === templateId);
 }
 
 export function getAllTemplates(): PurchaseMessageTemplate[] {
   return defaultTemplates;
 }
 
-export function processMessage(template: string, variables: MessageVariables): string {
+export function processMessage(
+  template: string,
+  variables: MessageVariables
+): string {
   let processedMessage = template;
-  
+
   Object.entries(variables).forEach(([key, value]) => {
     if (value) {
       const placeholder = `{{${key}}}`;
-      processedMessage = processedMessage.replace(new RegExp(placeholder, 'g'), value);
+      processedMessage = processedMessage.replace(
+        new RegExp(placeholder, 'g'),
+        value
+      );
     }
   });
-  
+
   // Limpiar variables no reemplazadas
-  processedMessage = processedMessage.replace(/\{\{[^}]+\}\}/g, '[No disponible]');
-  
+  processedMessage = processedMessage.replace(
+    /\{\{[^}]+\}\}/g,
+    '[No disponible]'
+  );
+
   return processedMessage;
 }
 
-export function validateTemplate(content: string): { isValid: boolean; errors: string[] } {
+export function validateTemplate(content: string): {
+  isValid: boolean;
+  errors: string[];
+} {
   const errors: string[] = [];
-  
+
   if (!content.trim()) {
     errors.push('El contenido del mensaje no puede estar vacío');
   }
-  
+
   if (content.length > 1000) {
     errors.push('El mensaje no puede exceder 1000 caracteres');
   }
-  
+
   // Verificar variables malformadas
-  const malformedVariables = content.match(/\{[^}]*\}/g)?.filter(match => !match.match(/^\{\{[a-zA-Z][a-zA-Z0-9_]*\}\}$/));
+  const malformedVariables = content
+    .match(/\{[^}]*\}/g)
+    ?.filter((match) => !match.match(/^\{\{[a-zA-Z][a-zA-Z0-9_]*\}\}$/));
   if (malformedVariables && malformedVariables.length > 0) {
-    errors.push(`Variables malformadas encontradas: ${malformedVariables.join(', ')}`);
+    errors.push(
+      `Variables malformadas encontradas: ${malformedVariables.join(', ')}`
+    );
   }
-  
+
   return {
     isValid: errors.length === 0,
     errors
@@ -99,11 +126,14 @@ export function validateTemplate(content: string): { isValid: boolean; errors: s
 export function extractVariables(content: string): string[] {
   const matches = content.match(/\{\{([a-zA-Z][a-zA-Z0-9_]*)\}\}/g);
   if (!matches) return [];
-  
-  return matches.map(match => match.replace(/\{\{|\}\}/g, ''));
+
+  return matches.map((match) => match.replace(/\{\{|\}\}/g, ''));
 }
 
-export function getAvailableVariables(): Array<{ key: keyof MessageVariables; description: string }> {
+export function getAvailableVariables(): Array<{
+  key: keyof MessageVariables;
+  description: string;
+}> {
   return [
     { key: 'buyerName', description: 'Nombre del comprador' },
     { key: 'orderNumber', description: 'Número de orden' },
@@ -119,21 +149,30 @@ export function getAvailableVariables(): Array<{ key: keyof MessageVariables; de
 export async function sendAutomaticMessage(
   orderId: number,
   templateId: string,
-  variables: MessageVariables
+  variables: MessageVariables,
+  packId?: number,
+  buyerUserId?: string
 ): Promise<boolean> {
   const template = getTemplate(templateId);
   if (!template) {
     console.error(`Template ${templateId} not found`);
     return false;
   }
-  
+
   const message = processMessage(template.content, variables);
-  
+
   // Aquí se integraría con la función de envío de MercadoLibre
   // Por ahora, solo simulamos el envío
   try {
+    if (!packId || !buyerUserId) {
+      console.error(
+        'packId and buyerUserId are required for sending buyer messages'
+      );
+      return false;
+    }
+
     const { sendBuyerMessage } = await import('./mercadolibre');
-    return await sendBuyerMessage(orderId, message);
+    return await sendBuyerMessage(packId, message, buyerUserId);
   } catch (error) {
     console.error('Error sending automatic message:', error);
     return false;
@@ -153,7 +192,7 @@ export function generateMessageForOrderEvent(
   }
 ): { templateId: string; message: string } | null {
   let templateId: string;
-  
+
   switch (event) {
     case 'payment_confirmed':
       templateId = 'confirmation';
@@ -168,10 +207,10 @@ export function generateMessageForOrderEvent(
     default:
       return null;
   }
-  
+
   const template = getTemplate(templateId);
   if (!template) return null;
-  
+
   const message = processMessage(template.content, {
     buyerName: orderData.buyerName,
     orderNumber: orderData.orderId.toString(),
@@ -181,6 +220,6 @@ export function generateMessageForOrderEvent(
     trackingNumber: orderData.trackingNumber,
     sellerName: 'Nuestro equipo'
   });
-  
+
   return { templateId, message };
-} 
+}
