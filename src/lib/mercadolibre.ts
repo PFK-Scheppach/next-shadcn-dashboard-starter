@@ -168,53 +168,71 @@ export async function fetchOrdersByDateRange(
     }
   }
 
-  // Build URL with date filters if provided
-  let url = `https://api.mercadolibre.com/orders/search?seller=${sellerId}&order.status=paid`;
-  if (fromDate) url += `&order.date_created.from=${fromDate}`;
-  if (toDate) url += `&order.date_created.to=${toDate}`;
+  const baseUrl =
+    `https://api.mercadolibre.com/orders/search?seller=${sellerId}` +
+    `&order.status=paid` +
+    (fromDate ? `&order.date_created.from=${fromDate}` : '') +
+    (toDate ? `&order.date_created.to=${toDate}` : '');
+
+  const allOrders: MercadoLibreOrder[] = [];
+  let offset = 0;
+  const limit = 50;
 
   try {
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${currentToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (res.status === 401) {
-      const newToken = await refreshAccessToken();
-      if (!newToken) return [];
-
-      const retryRes = await fetch(url, {
+    while (true) {
+      const url = `${baseUrl}&offset=${offset}&limit=${limit}`;
+      const res = await fetch(url, {
         headers: {
-          Authorization: `Bearer ${newToken}`,
+          Authorization: `Bearer ${currentToken}`,
           'Content-Type': 'application/json'
         }
       });
 
-      if (!retryRes.ok) {
-        console.error(
-          'Failed to fetch MercadoLibre orders after token refresh',
-          await retryRes.text()
-        );
-        return [];
+      if (res.status === 401) {
+        const newToken = await refreshAccessToken();
+        if (!newToken) return allOrders;
+
+        const retryRes = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${newToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!retryRes.ok) {
+          console.error(
+            'Failed to fetch MercadoLibre orders after token refresh',
+            await retryRes.text()
+          );
+          return allOrders;
+        }
+
+        const data = await retryRes.json();
+        allOrders.push(...(data.results as MercadoLibreOrder[]));
+        if (data.results.length < limit) break;
+      } else {
+        if (!res.ok) {
+          console.error(
+            'Failed to fetch MercadoLibre orders',
+            await res.text()
+          );
+          return allOrders;
+        }
+
+        const data = await res.json();
+        allOrders.push(...(data.results as MercadoLibreOrder[]));
+        if (data.results.length < limit) break;
       }
 
-      const data = await retryRes.json();
-      return data.results as MercadoLibreOrder[];
+      offset += limit;
+      await sleep(200); // small delay to respect rate limits
     }
 
-    if (!res.ok) {
-      console.error('Failed to fetch MercadoLibre orders', await res.text());
-      return [];
-    }
-
-    const data = await res.json();
-    console.log(`Found ${data.results?.length || 0} orders in date range`);
-    return data.results as MercadoLibreOrder[];
+    console.log(`Found ${allOrders.length} orders in date range`);
+    return allOrders;
   } catch (error) {
     console.error('Error fetching MercadoLibre orders:', error);
-    return [];
+    return allOrders;
   }
 }
 
