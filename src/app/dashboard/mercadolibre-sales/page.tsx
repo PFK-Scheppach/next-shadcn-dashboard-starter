@@ -41,12 +41,18 @@ function SalesContent() {
   const loadInitialData = async () => {
     setIsLoading(true);
     try {
+      console.log('🔄 [MercadoLibre Sales] Starting to load initial data...');
       const data = await fetchOrders();
+      console.log(
+        `📦 [MercadoLibre Sales] Loaded ${data.length} orders:`,
+        data
+      );
       setOrders(data);
       const currentMonth = getCurrentMonthRange();
+      console.log(`📅 [MercadoLibre Sales] Current month range:`, currentMonth);
       setCurrentDateRange(currentMonth.monthName);
     } catch (error) {
-      console.error('Error loading orders:', error);
+      console.error('❌ [MercadoLibre Sales] Error loading orders:', error);
     } finally {
       setIsLoading(false);
     }
@@ -59,11 +65,21 @@ function SalesContent() {
   ) => {
     setIsLoading(true);
     try {
+      console.log(
+        `🔄 [MercadoLibre Sales] Filtering by date range: ${fromDate} to ${toDate} (${label})`
+      );
       const data = await fetchOrdersByDateRange(fromDate, toDate);
+      console.log(
+        `📦 [MercadoLibre Sales] Filtered ${data.length} orders:`,
+        data
+      );
       setOrders(data);
       setCurrentDateRange(label || 'Rango personalizado');
     } catch (error) {
-      console.error('Error loading orders for date range:', error);
+      console.error(
+        '❌ [MercadoLibre Sales] Error loading orders for date range:',
+        error
+      );
     } finally {
       setIsLoading(false);
     }
