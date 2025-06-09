@@ -38,6 +38,26 @@ export const navItems: NavItem[] = [
     items: [] // No child items
   },
   {
+    title: 'MercadoLibre',
+    url: '#',
+    icon: 'product',
+    isActive: false,
+    items: [
+      {
+        title: 'Mensajes',
+        url: '/dashboard/mercadolibre/messages',
+        icon: 'post',
+        shortcut: ['m', 'l']
+      },
+      {
+        title: 'Preguntas',
+        url: '/dashboard/mercadolibre/questions',
+        icon: 'help',
+        shortcut: ['q', 'l']
+      }
+    ]
+  },
+  {
     title: 'Account',
     url: '#', // Placeholder as there is no direct link for the parent
     icon: 'billing',
