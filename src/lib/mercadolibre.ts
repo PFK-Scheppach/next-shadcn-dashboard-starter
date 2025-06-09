@@ -399,7 +399,10 @@ export async function fetchMessages(): Promise<MercadoLibreMessage[]> {
   console.log(
     `🗓️ Fetching messages for current month: ${currentMonthRange.monthName}`
   );
-  return fetchMessagesByDateRange(currentMonthRange.from, currentMonthRange.to);
+  return fetchMessagesByDateRange(
+    new Date(currentMonthRange.from),
+    new Date(currentMonthRange.to)
+  );
 }
 
 export async function fetchMessagesByDateRange(
@@ -531,8 +534,8 @@ export async function fetchQuestions(): Promise<MercadoLibreQuestion[]> {
     `🗓️ Fetching questions for current month: ${currentMonthRange.monthName}`
   );
   return fetchQuestionsByDateRange(
-    currentMonthRange.from,
-    currentMonthRange.to
+    new Date(currentMonthRange.from),
+    new Date(currentMonthRange.to)
   );
 }
 
