@@ -48,8 +48,7 @@ export async function POST(req: NextRequest) {
 
     console.log(`✅ [API] Conversación iniciada exitosamente:`, {
       message_id: result.id,
-      status: result.status,
-      moderation_status: result.message_moderation.status
+      status: result.status
     });
 
     return NextResponse.json(result);
