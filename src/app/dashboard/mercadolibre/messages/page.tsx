@@ -41,6 +41,7 @@ export default function MessagesPage() {
   const loadMessages = async (fromDate?: Date, toDate?: Date) => {
     setIsLoading(true);
     try {
+      console.log('🔄 [Messages Page] Loading messages...');
       const params = new URLSearchParams();
       if (fromDate && toDate) {
         params.set('from', fromDate.toISOString());
@@ -48,9 +49,12 @@ export default function MessagesPage() {
       }
       const res = await fetch(`/api/mercadolibre/threads?${params.toString()}`);
       const json = await res.json();
+      console.log(
+        `✅ [Messages Page] Loaded ${json.threads?.length || 0} threads`
+      );
       setThreads(json.threads || []);
     } catch (error) {
-      console.error('Error loading messages:', error);
+      console.error('❌ [Messages Page] Error loading messages:', error);
       setThreads([]);
     } finally {
       setIsLoading(false);
@@ -70,7 +74,7 @@ export default function MessagesPage() {
     loadMessages(from, to);
   };
 
-  // Calculate stats
+  // Calculate stats - UPDATED for new MessageThread interface
   const totalMessages = threads.reduce(
     (acc, thread) => acc + thread.messages.length,
     0
@@ -80,10 +84,9 @@ export default function MessagesPage() {
       new Date().getTime() - new Date(thread.lastMessageDate).getTime() <
       7 * 24 * 60 * 60 * 1000
   ).length;
-  const uniqueBuyers = new Set(threads.map((thread) => thread.buyerUserId))
-    .size;
+  const uniqueBuyers = new Set(threads.map((thread) => thread.buyer.id)).size;
 
-  // Get recent activity
+  // Get recent activity - UPDATED for new MessageThread interface
   const recentThreads = threads
     .sort(
       (a, b) =>
@@ -198,7 +201,7 @@ export default function MessagesPage() {
 
         <Separator />
 
-        {/* Recent Activity */}
+        {/* Recent Activity - UPDATED for new MessageThread interface */}
         {recentThreads.length > 0 && (
           <>
             <Card>
@@ -215,15 +218,15 @@ export default function MessagesPage() {
                 <div className='space-y-3'>
                   {recentThreads.map((thread) => (
                     <div
-                      key={`${thread.packId}-${thread.buyerUserId}`}
+                      key={`${thread.pack_id}-${thread.buyer.id}`}
                       className='flex items-center justify-between rounded-lg border p-3'
                     >
                       <div className='flex items-center gap-3'>
                         <User className='text-muted-foreground h-5 w-5' />
                         <div>
-                          <p className='font-medium'>{thread.buyerNickname}</p>
+                          <p className='font-medium'>{thread.buyer.nickname}</p>
                           <p className='text-muted-foreground text-sm'>
-                            Pack #{thread.packId}
+                            Pack #{thread.pack_id}
                           </p>
                         </div>
                       </div>

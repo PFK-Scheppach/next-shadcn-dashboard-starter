@@ -74,7 +74,7 @@ export function MessageReplyForm({
       let success = false;
 
       if (packId && buyerUserId) {
-        success = await sendMessage(packId, data.message, buyerUserId);
+        success = await sendMessage(packId, buyerUserId, data.message);
       } else if (questionId) {
         success = await replyToQuestion(questionId, data.message);
       }

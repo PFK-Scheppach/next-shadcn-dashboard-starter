@@ -40,32 +40,10 @@ import {
   ArrowUpDown
 } from 'lucide-react';
 import { MessageReplyForm } from '@/features/mercadolibre/components/message-reply-form';
-import { formatMessageDate } from '@/features/mercadolibre/utils/messages';
-
-interface MessageThread {
-  packId: number;
-  buyerUserId: string;
-  buyerNickname: string;
-  lastMessageDate: string;
-  messages: Array<{
-    id: string;
-    text: string;
-    from: {
-      user_id: string;
-    };
-    to: {
-      user_id: string;
-    };
-    message_date: {
-      created: string;
-      received: string;
-      available: string;
-      notified: string;
-      read?: string;
-    };
-    status: string;
-  }>;
-}
+import {
+  formatMessageDate,
+  type MessageThread
+} from '@/features/mercadolibre/utils/messages';
 
 interface EnhancedMessagesListProps {
   initialThreads: MessageThread[];
@@ -109,12 +87,14 @@ export function EnhancedMessagesList({
     return `Hace ${diffInMonths} mes${diffInMonths !== 1 ? 'es' : ''}`;
   };
 
-  // Filter and sort threads
+  // Filter and sort threads - UPDATED for new MessageThread interface
   const filteredAndSortedThreads = useMemo(() => {
     let filtered = threads.filter(
       (thread) =>
-        thread.buyerNickname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        thread.packId.toString().includes(searchTerm)
+        thread.buyer.nickname
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        thread.pack_id.toString().includes(searchTerm)
     );
 
     // Sort threads
@@ -128,7 +108,7 @@ export function EnhancedMessagesList({
             new Date(b.lastMessageDate).getTime();
           break;
         case 'buyer':
-          comparison = a.buyerNickname.localeCompare(b.buyerNickname);
+          comparison = a.buyer.nickname.localeCompare(b.buyer.nickname);
           break;
         case 'messages':
           comparison = a.messages.length - b.messages.length;
@@ -172,7 +152,7 @@ export function EnhancedMessagesList({
   };
 
   const getMessagesToShow = (thread: MessageThread) => {
-    const threadKey = `${thread.packId}-${thread.buyerUserId}`;
+    const threadKey = `${thread.pack_id}-${thread.buyer.id}`;
     const showAll = showMessageHistory[threadKey];
     return showAll ? thread.messages : thread.messages.slice(-3);
   };
@@ -273,7 +253,7 @@ export function EnhancedMessagesList({
           </span>
         </div>
 
-        {/* Messages List */}
+        {/* Messages List - UPDATED for new MessageThread interface */}
         {filteredAndSortedThreads.length === 0 ? (
           <div className='py-8 text-center'>
             <p className='text-muted-foreground'>
@@ -287,7 +267,7 @@ export function EnhancedMessagesList({
           <>
             <div className='space-y-6'>
               {paginatedThreads.map((thread) => {
-                const threadKey = `${thread.packId}-${thread.buyerUserId}`;
+                const threadKey = `${thread.pack_id}-${thread.buyer.id}`;
                 const messagesToShow = getMessagesToShow(thread);
                 const hasMoreMessages = thread.messages.length > 3;
                 const showingAll = showMessageHistory[threadKey];
@@ -302,11 +282,11 @@ export function EnhancedMessagesList({
                         <div className='flex-1'>
                           <CardTitle className='flex items-center gap-2'>
                             <User className='h-5 w-5' />
-                            {thread.buyerNickname}
+                            {thread.buyer.nickname}
                           </CardTitle>
                           <CardDescription className='mt-1 flex items-center gap-2'>
                             <Clock className='h-4 w-4' />
-                            Pack #{thread.packId} •{' '}
+                            Pack #{thread.pack_id} •{' '}
                             {formatMessageDate(thread.lastMessageDate)}
                           </CardDescription>
                           <p className='text-muted-foreground mt-1 text-xs'>
@@ -331,10 +311,10 @@ export function EnhancedMessagesList({
                             <DialogContent className='max-h-[80vh] max-w-4xl overflow-y-auto'>
                               <DialogHeader>
                                 <DialogTitle>
-                                  Conversación con {thread.buyerNickname}
+                                  Conversación con {thread.buyer.nickname}
                                 </DialogTitle>
                                 <DialogDescription>
-                                  Pack #{thread.packId} •{' '}
+                                  Pack #{thread.pack_id} •{' '}
                                   {thread.messages.length} mensaje
                                   {thread.messages.length !== 1 ? 's' : ''}
                                 </DialogDescription>
@@ -353,7 +333,12 @@ export function EnhancedMessagesList({
                                           : 'mr-8 border-l-4 border-gray-200 bg-gray-50'
                                       }`}
                                     >
-                                      <p className='text-sm'>{message.text}</p>
+                                      <p className='text-sm'>
+                                        {typeof message.text === 'string'
+                                          ? message.text
+                                          : message.text.plain ||
+                                            'Sin contenido'}
+                                      </p>
                                       <div className='mt-2 flex items-center gap-2'>
                                         <span className='text-muted-foreground text-xs'>
                                           {formatMessageDate(
@@ -369,7 +354,7 @@ export function EnhancedMessagesList({
                                               .NEXT_PUBLIC_MERCADOLIBRE_SELLER_ID ||
                                           message.from.user_id === '1989560190'
                                             ? 'Tú'
-                                            : thread.buyerNickname}
+                                            : thread.buyer.nickname}
                                         </Badge>
                                       </div>
                                     </div>
@@ -377,9 +362,9 @@ export function EnhancedMessagesList({
                                 </div>
 
                                 <MessageReplyForm
-                                  packId={thread.packId}
-                                  buyerUserId={thread.buyerUserId}
-                                  recipientName={thread.buyerNickname}
+                                  packId={thread.pack_id}
+                                  buyerUserId={thread.buyer.id}
+                                  recipientName={thread.buyer.nickname}
                                   placeholder='Responder al comprador...'
                                 />
                               </div>
@@ -402,7 +387,11 @@ export function EnhancedMessagesList({
                                 : 'mr-8 bg-gray-50'
                             }`}
                           >
-                            <p className='text-sm'>{message.text}</p>
+                            <p className='text-sm'>
+                              {typeof message.text === 'string'
+                                ? message.text
+                                : message.text.plain || 'Sin contenido'}
+                            </p>
                             <span className='text-muted-foreground text-xs'>
                               {formatMessageDate(message.message_date.created)}
                             </span>
@@ -435,9 +424,9 @@ export function EnhancedMessagesList({
                       )}
 
                       <MessageReplyForm
-                        packId={thread.packId}
-                        buyerUserId={thread.buyerUserId}
-                        recipientName={thread.buyerNickname}
+                        packId={thread.pack_id}
+                        buyerUserId={thread.buyer.id}
+                        recipientName={thread.buyer.nickname}
                         placeholder='Responder al comprador...'
                       />
                     </CardContent>

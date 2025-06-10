@@ -332,100 +332,90 @@ export async function fetchOrdersByDateRange(
   }
 }
 
-export async function fetchMessageThreads(
-  fromDate?: Date,
-  toDate?: Date,
-  limit = 50,
-  offset = 0
-): Promise<MercadoLibreThread[]> {
-  const sellerId = process.env.MERCADOLIBRE_SELLER_ID;
-  const siteId = process.env.MERCADOLIBRE_SITE_ID || 'MLC';
-  if (!sellerId) {
-    console.warn('MercadoLibre seller id not provided');
-    return [];
-  }
-
-  if (!currentToken) {
-    const refreshed = await refreshAccessToken();
-    if (!refreshed) {
-      console.warn('No MercadoLibre token available');
-      return [];
-    }
-  }
-
-  let url =
-    `https://api.mercadolibre.com/messages/threads/search?seller=${sellerId}` +
-    `&site_id=${siteId}&tag=post_sale&limit=${limit}&offset=${offset}`;
-
-  if (fromDate) {
-    url += `&last_updated_from=${fromDate.toISOString()}`;
-  }
-  if (toDate) {
-    url += `&last_updated_to=${toDate.toISOString()}`;
-  }
-
-  try {
-    const res = await throttledApiCall(url, {
-      headers: {
-        Authorization: `Bearer ${currentToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (res.status === 401) {
-      const newToken = await refreshAccessToken();
-      if (!newToken) return [];
-
-      const retryRes = await throttledApiCall(url, {
-        headers: {
-          Authorization: `Bearer ${newToken}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!retryRes.ok) {
-        console.error(
-          'Failed to fetch MercadoLibre threads after token refresh',
-          await retryRes.text()
-        );
-        return [];
-      }
-
-      const data = await retryRes.json();
-      return data.threads || [];
-    }
-
-    if (!res.ok) {
-      console.error('Failed to fetch MercadoLibre threads', await res.text());
-      return [];
-    }
-
-    const data = await res.json();
-    return data.threads || [];
-  } catch (error) {
-    console.error('Error fetching MercadoLibre threads:', error);
-    return [];
-  }
-}
-
-export async function fetchAllMessageThreads(
+export async function fetchMessageThreadsByDateRange(
   fromDate?: Date,
   toDate?: Date
-): Promise<MercadoLibreThread[]> {
-  const limit = 50;
-  let offset = 0;
-  const allThreads: MercadoLibreThread[] = [];
+): Promise<
+  Array<{
+    pack_id: number;
+    buyer: { id: string; nickname: string };
+    messages: MercadoLibreMessage[];
+  }>
+> {
+  console.log(
+    '🔄 [MercadoLibre Messages] Using pack-based approach (official API)'
+  );
 
-  while (true) {
-    const batch = await fetchMessageThreads(fromDate, toDate, limit, offset);
-    if (batch.length === 0) break;
-    allThreads.push(...batch);
-    if (batch.length < limit) break;
-    offset += limit;
-    await sleep(200);
+  // First get orders for the specified date range to find pack IDs and buyer info
+  const orders = await fetchOrdersByDateRange(
+    fromDate?.toISOString().split('T')[0],
+    toDate?.toISOString().split('T')[0]
+  );
+
+  if (orders.length === 0) {
+    console.log('No orders found for the specified date range');
+    return [];
   }
 
-  return allThreads;
+  // Group orders by pack_id and extract buyer information
+  const packMap = new Map<
+    number,
+    { buyer: { id: string; nickname: string } }
+  >();
+
+  for (const order of orders) {
+    if (order.pack_id && order.buyer) {
+      packMap.set(order.pack_id, {
+        buyer: {
+          id: order.buyer.id.toString(),
+          nickname: order.buyer.nickname || 'Cliente'
+        }
+      });
+    }
+  }
+
+  const packIds = Array.from(packMap.keys());
+  const dateRangeStr =
+    fromDate && toDate
+      ? `from ${fromDate.toLocaleDateString()} to ${toDate.toLocaleDateString()}`
+      : 'current month';
+
+  console.log(
+    `📦 Found ${packIds.length} packs to check for messages (${dateRangeStr})`
+  );
+
+  const messageThreads: Array<{
+    pack_id: number;
+    buyer: { id: string; nickname: string };
+    messages: MercadoLibreMessage[];
+  }> = [];
+
+  // Fetch messages for each pack with throttling
+  for (const packId of packIds) {
+    try {
+      const packMessages = await fetchAllMessagesForPack(packId);
+      if (packMessages.length > 0) {
+        const packInfo = packMap.get(packId)!;
+        messageThreads.push({
+          pack_id: packId,
+          buyer: packInfo.buyer,
+          messages: packMessages
+        });
+        console.log(
+          `💬 Found ${packMessages.length} messages for pack ${packId} (buyer: ${packInfo.buyer.nickname})`
+        );
+      }
+
+      // Respect rate limits
+      await sleep(300);
+    } catch (error) {
+      console.log(`⚠️ Skipping pack ${packId} due to error:`, error);
+      continue;
+    }
+  }
+
+  console.log(`✅ Total message threads found: ${messageThreads.length}`);
+  return messageThreads;
 }
 
 export async function sendBuyerMessage(
@@ -445,7 +435,11 @@ export async function sendBuyerMessage(
   }
 
   try {
-    // Use the correct messaging endpoint from the documentation
+    console.log(
+      `📤 [MercadoLibre Messages] Sending message to pack ${packId}, buyer ${buyerUserId}`
+    );
+
+    // Use the exact format from the official documentation
     const res = await fetch(
       `https://api.mercadolibre.com/messages/packs/${packId}/sellers/${sellerId}?tag=post_sale`,
       {
@@ -461,14 +455,13 @@ export async function sendBuyerMessage(
           to: {
             user_id: buyerUserId
           },
-          text: {
-            plain: text.trim()
-          }
+          text: text.trim() // Plain text as per documentation
         })
       }
     );
 
     if (res.status === 401) {
+      console.log('🔄 [MercadoLibre Messages] Token expired, refreshing...');
       const newToken = await refreshAccessToken();
       if (!newToken) return false;
 
@@ -487,32 +480,39 @@ export async function sendBuyerMessage(
             to: {
               user_id: buyerUserId
             },
-            text: {
-              plain: text.trim()
-            }
+            text: text.trim()
           })
         }
       );
 
       if (!retryRes.ok) {
+        const errorText = await retryRes.text();
         console.error(
-          'Failed to send MercadoLibre message after token refresh',
-          await retryRes.text()
+          '❌ [MercadoLibre Messages] Failed to send message after token refresh',
+          errorText
         );
         return false;
       }
 
+      console.log(
+        '✅ [MercadoLibre Messages] Message sent successfully after token refresh'
+      );
       return true;
     }
 
     if (!res.ok) {
-      console.error('Failed to send MercadoLibre message', await res.text());
+      const errorText = await res.text();
+      console.error(
+        '❌ [MercadoLibre Messages] Failed to send message',
+        errorText
+      );
       return false;
     }
 
+    console.log('✅ [MercadoLibre Messages] Message sent successfully');
     return true;
   } catch (error) {
-    console.error('Error sending MercadoLibre message:', error);
+    console.error('❌ [MercadoLibre Messages] Error sending message:', error);
     return false;
   }
 }

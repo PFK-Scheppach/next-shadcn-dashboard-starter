@@ -1,144 +1,101 @@
 import {
-  fetchAllMessageThreads,
-  fetchAllMessagesForPack,
+  fetchMessageThreadsByDateRange,
   sendBuyerMessage,
-  type MercadoLibreThread,
   type MercadoLibreMessage
 } from '@/lib/mercadolibre';
 
+// Nueva interfaz basada en la implementación real de la API
 export interface MessageThread {
-  packId: number;
-  buyerUserId: string;
-  buyerNickname: string;
-  lastMessageDate: string;
-  messages: Array<{
+  pack_id: number;
+  buyer: {
     id: string;
-    text: string;
-    from: { user_id: string };
-    to: { user_id: string };
-    message_date: {
-      created: string;
-      received: string;
-      available: string;
-      notified: string;
-      read?: string;
-    };
-    status: string;
-  }>;
+    nickname: string;
+  };
+  messages: MercadoLibreMessage[];
+  lastMessageDate: string;
 }
 
-export async function getMessageThreads(): Promise<MessageThread[]> {
-  try {
-    const threads = await fetchAllMessageThreads();
-    const result: MessageThread[] = [];
-
-    for (const t of threads) {
-      const msgs = await fetchAllMessagesForPack(t.pack_id);
-      const normalized = msgs.map((m) => ({
-        ...m,
-        text:
-          typeof m.text === 'object' && 'plain' in m.text
-            ? m.text.plain
-            : m.text
-      }));
-      result.push({
-        packId: t.pack_id,
-        buyerUserId: t.other_user.id,
-        buyerNickname: t.other_user.nickname || 'Cliente',
-        lastMessageDate: t.last_message.message_date.created,
-        messages: normalized
-      });
-    }
-
-    return result;
-  } catch (error) {
-    console.error('Error getting message threads:', error);
-    return [];
-  }
-}
-
+// Función para obtener mensajes usando la nueva implementación oficial
 export async function getMessageThreadsByDateRange(
   fromDate?: Date,
   toDate?: Date
 ): Promise<MessageThread[]> {
+  console.log(
+    '🔄 [Message Utils] Getting message threads using official pack-based API'
+  );
+
   try {
-    const threads = await fetchAllMessageThreads(fromDate, toDate);
-    const result: MessageThread[] = [];
+    const packThreads = await fetchMessageThreadsByDateRange(fromDate, toDate);
 
-    for (const t of threads) {
-      const msgs = await fetchAllMessagesForPack(t.pack_id);
-      const normalized = msgs.map((m) => ({
-        ...m,
-        text:
-          typeof m.text === 'object' && 'plain' in m.text
-            ? m.text.plain
-            : m.text
-      }));
-      result.push({
-        packId: t.pack_id,
-        buyerUserId: t.other_user.id,
-        buyerNickname: t.other_user.nickname || 'Cliente',
-        lastMessageDate: t.last_message.message_date.created,
-        messages: normalized
-      });
-    }
+    // Convertir al formato esperado por el frontend
+    const messageThreads: MessageThread[] = packThreads.map((packThread) => ({
+      pack_id: packThread.pack_id,
+      buyer: packThread.buyer,
+      messages: packThread.messages,
+      lastMessageDate:
+        packThread.messages.length > 0
+          ? packThread.messages[packThread.messages.length - 1].message_date
+              .created
+          : new Date().toISOString()
+    }));
 
-    return result;
+    console.log(
+      `✅ [Message Utils] Successfully retrieved ${messageThreads.length} message threads`
+    );
+    return messageThreads;
   } catch (error) {
-    console.error('Error getting message threads by date range:', error);
+    console.error('❌ [Message Utils] Error getting message threads:', error);
     return [];
   }
 }
 
+// Función por defecto que usa el mes actual
+export async function getMessageThreads(): Promise<MessageThread[]> {
+  console.log('🔄 [Message Utils] Getting message threads for current month');
+  return getMessageThreadsByDateRange();
+}
+
+// Función para enviar mensajes
 export async function sendMessage(
   packId: number,
-  text: string,
-  buyerUserId: string
+  buyerUserId: string,
+  message: string
 ): Promise<boolean> {
+  console.log(
+    `📤 [Message Utils] Sending message to pack ${packId}, buyer ${buyerUserId}`
+  );
+
   try {
-    const res = await fetch('/api/mercadolibre/send-message', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        packId,
-        buyerId: buyerUserId,
-        message: text
-      })
-    });
-
-    if (!res.ok) {
-      console.error('Failed to send message:', await res.text());
-      return false;
+    const success = await sendBuyerMessage(packId, message, buyerUserId);
+    if (success) {
+      console.log('✅ [Message Utils] Message sent successfully');
+    } else {
+      console.error('❌ [Message Utils] Failed to send message');
     }
-
-    const data = await res.json();
-    return !!data.success;
+    return success;
   } catch (error) {
-    console.error('Error sending message:', error);
+    console.error('❌ [Message Utils] Error sending message:', error);
     return false;
   }
 }
 
+// Función helper para formatear fechas
 export function formatMessageDate(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-  if (diffInHours < 1) {
-    return 'Hace unos minutos';
-  } else if (diffInHours < 24) {
-    return `Hace ${Math.floor(diffInHours)} horas`;
-  } else {
+  try {
+    const date = new Date(dateString);
     return date.toLocaleDateString('es-CL', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
+  } catch (error) {
+    return dateString;
   }
 }
 
-export function isMessageFromSeller(message: MercadoLibreMessage): boolean {
-  return message.from.user_id === process.env.MERCADOLIBRE_SELLER_ID;
+// Función helper para normalizar texto de mensajes
+export function normalizeMessageText(text: string | { plain: string }): string {
+  return typeof text === 'string' ? text : text.plain;
 }
