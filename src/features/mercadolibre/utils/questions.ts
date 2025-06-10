@@ -70,7 +70,21 @@ export async function replyToQuestion(
   answer: string
 ): Promise<boolean> {
   try {
-    return await answerQuestion(questionId, answer);
+    const res = await fetch('/api/mercadolibre/send-message', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ questionId, message: answer })
+    });
+
+    if (!res.ok) {
+      console.error('Failed to reply to question:', await res.text());
+      return false;
+    }
+
+    const data = await res.json();
+    return !!data.success;
   } catch (error) {
     console.error('Error replying to question:', error);
     return false;

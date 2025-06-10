@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   sendBuyerMessage,
   answerQuestion,
-  fetchOrders
+  fetchOrderDetails
 } from '@/lib/mercadolibre';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { orderId, questionId, message, buyerId } = body;
+    const { orderId, questionId, packId, message, buyerId } = body;
 
     if (!message) {
       return NextResponse.json(
@@ -17,44 +17,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!orderId && !questionId) {
+    if (!orderId && !questionId && !packId) {
       return NextResponse.json(
-        { error: 'Either orderId or questionId is required' },
+        { error: 'orderId, packId or questionId is required' },
         { status: 400 }
       );
     }
 
     let success = false;
 
-    if (orderId) {
-      // If buyerId is not provided, we need to get it from the order
-      if (!buyerId) {
-        const orders = await fetchOrders();
-        const order = orders.find((o) => o.id === parseInt(orderId));
-        if (!order || !order.pack_id) {
-          return NextResponse.json(
-            { error: 'Order not found or pack_id missing' },
-            { status: 404 }
-          );
-        }
-        // For now, we'll use a placeholder buyerId since we need to implement buyer ID extraction
+    if (packId && buyerId) {
+      success = await sendBuyerMessage(packId, message, buyerId);
+    } else if (orderId) {
+      const order = await fetchOrderDetails(orderId.toString());
+      if (!order || !order.pack_id || !order.buyer?.id) {
         return NextResponse.json(
-          { error: 'buyerId is required for sending buyer messages' },
-          { status: 400 }
-        );
-      }
-
-      // Find the pack_id for this order
-      const orders = await fetchOrders();
-      const order = orders.find((o) => o.id === parseInt(orderId));
-      if (!order || !order.pack_id) {
-        return NextResponse.json(
-          { error: 'Order not found or pack_id missing' },
+          { error: 'Order not found or missing data' },
           { status: 404 }
         );
       }
-
-      success = await sendBuyerMessage(order.pack_id, message, buyerId);
+      const buyer = buyerId ?? String(order.buyer.id);
+      success = await sendBuyerMessage(order.pack_id, message, buyer);
     } else if (questionId) {
       success = await answerQuestion(questionId, message);
     }

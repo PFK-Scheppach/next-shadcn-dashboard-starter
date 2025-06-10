@@ -96,7 +96,25 @@ export async function sendMessage(
   buyerUserId: string
 ): Promise<boolean> {
   try {
-    return await sendBuyerMessage(packId, text, buyerUserId);
+    const res = await fetch('/api/mercadolibre/send-message', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        packId,
+        buyerId: buyerUserId,
+        message: text
+      })
+    });
+
+    if (!res.ok) {
+      console.error('Failed to send message:', await res.text());
+      return false;
+    }
+
+    const data = await res.json();
+    return !!data.success;
   } catch (error) {
     console.error('Error sending message:', error);
     return false;
