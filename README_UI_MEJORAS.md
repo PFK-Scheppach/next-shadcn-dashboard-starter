@@ -56,16 +56,20 @@ La UI ha sido completamente rediseñada con una interfaz moderna, intuitiva y fu
 ### 🛠️ Arquitectura de Componentes
 
 #### **Componentes Creados**
-1. **`ConversationFilters`**: Sistema de filtros avanzado
-2. **`ConversationItem`**: Item individual de conversación
-3. **`ChatArea`**: Área completa del chat mejorada
+1. **`ConversationList`**: Vista de conversaciones ordenadas y filtradas
+2. **`ProductCard`**: Muestra detalles del producto vendido
+3. **`ChatHeader`**: Encabezado del chat con información del comprador
+4. **`ChatMessages`**: Lista de mensajes con estados
+5. **`ChatInput`**: Campo de texto y botón para enviar mensajes
 
 #### **Estructura Modular**
 ```
 src/components/messages/
-├── ConversationFilters.tsx
-├── ConversationItem.tsx
-└── ChatArea.tsx
+├── ConversationList.tsx
+├── ProductCard.tsx
+├── ChatHeader.tsx
+├── ChatMessages.tsx
+└── ChatInput.tsx
 ```
 
 ### 📊 Funcionalidades Mejoradas

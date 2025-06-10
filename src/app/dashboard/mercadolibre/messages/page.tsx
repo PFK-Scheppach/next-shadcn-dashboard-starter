@@ -1,28 +1,16 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Search,
-  Send,
-  Package,
-  Calendar,
-  DollarSign,
-  User,
-  MessageSquare,
-  Clock,
-  CheckCircle,
-  Check,
-  CheckCheck,
-  Truck,
-  Hash
-} from 'lucide-react';
+import { Search, MessageSquare, Check, CheckCheck } from 'lucide-react';
+
+import ChatHeader from '@/components/messages/ChatHeader';
+import ChatMessages from '@/components/messages/ChatMessages';
+import ChatInput from '@/components/messages/ChatInput';
 
 interface Pack {
   id: string;
@@ -356,153 +344,21 @@ export default function MessagesPage() {
       <div className='flex flex-1 flex-col'>
         {selectedPack ? (
           <>
-            {/* Header del chat */}
-            <div className='border-b border-gray-200 bg-white p-4'>
-              <div className='flex items-center justify-between'>
-                <div className='flex items-center space-x-3'>
-                  <Avatar className='h-10 w-10'>
-                    <AvatarFallback className='bg-blue-500 text-white'>
-                      {selectedPack.buyer.nickname.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <h2 className='font-semibold text-gray-900'>
-                      {selectedPack.buyer.nickname}
-                    </h2>
-                    <p className='text-sm text-gray-500'>
-                      Orden #{selectedPack.order_id || selectedPack.id}
-                    </p>
-                  </div>
-                </div>
-
-                {selectedPack.product_info && (
-                  <div className='flex items-center space-x-2 text-sm text-gray-600'>
-                    <Package className='h-4 w-4' />
-                    <span className='max-w-xs truncate'>
-                      {selectedPack.product_info.title}
-                    </span>
-                    <span className='font-semibold text-green-600'>
-                      {formatPrice(
-                        selectedPack.total_amount,
-                        selectedPack.currency_id
-                      )}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Área de mensajes */}
-            <ScrollArea className='flex-1 p-4'>
-              {messagesLoading ? (
-                <div className='flex h-full items-center justify-center'>
-                  <div className='text-center'>
-                    <div className='mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600'></div>
-                    <p className='text-gray-600'>Cargando mensajes...</p>
-                  </div>
-                </div>
-              ) : messages.length === 0 ? (
-                <div className='flex h-full items-center justify-center'>
-                  <div className='text-center text-gray-500'>
-                    <MessageSquare className='mx-auto mb-2 h-12 w-12 opacity-50' />
-                    <p>No hay mensajes en esta conversación</p>
-                  </div>
-                </div>
-              ) : (
-                <div className='space-y-4'>
-                  {messages.map((message, index) => {
-                    const isFromSeller =
-                      message.from.user_id ===
-                      selectedPack.seller.id.toString();
-
-                    return (
-                      <div
-                        key={`${message.message_id.value}-${index}`}
-                        className={`flex ${isFromSeller ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`max-w-xs lg:max-w-md ${isFromSeller ? 'order-2' : 'order-1'}`}
-                        >
-                          <div
-                            className={`rounded-lg px-4 py-2 ${
-                              isFromSeller
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-200 text-gray-900'
-                            }`}
-                          >
-                            <p className='text-sm'>{message.text}</p>
-                          </div>
-                          <div
-                            className={`mt-1 text-xs text-gray-500 ${
-                              isFromSeller ? 'text-right' : 'text-left'
-                            }`}
-                          >
-                            <span>
-                              {isFromSeller
-                                ? 'Tú'
-                                : selectedPack.buyer.nickname}
-                            </span>
-                            <span className='ml-2'>
-                              {formatTime(message.message_date.received)}
-                            </span>
-                            {isFromSeller && getMessageStatusIcon(message.status)}
-                          </div>
-                        </div>
-
-                        <Avatar
-                          className={`h-8 w-8 ${isFromSeller ? 'order-1 mr-2' : 'order-2 ml-2'}`}
-                        >
-                          <AvatarFallback
-                            className={
-                              isFromSeller
-                                ? 'bg-blue-500 text-white'
-                                : 'bg-gray-400 text-white'
-                            }
-                          >
-                            {isFromSeller
-                              ? 'T'
-                              : selectedPack.buyer.nickname
-                                  .charAt(0)
-                                  .toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                      </div>
-                    );
-                  })}
-                  <div ref={messagesEndRef} />
-                </div>
-              )}
-            </ScrollArea>
-
-            {/* Input para escribir mensaje */}
-            <div className='border-t border-gray-200 bg-white p-4'>
-              <div className='flex space-x-2'>
-                <Input
-                  placeholder='Escribe un mensaje...'
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  disabled={sendingMessage}
-                  className='flex-1'
-                />
-                <Button
-                  onClick={sendMessage}
-                  disabled={!newMessage.trim() || sendingMessage}
-                  className='bg-blue-500 hover:bg-blue-600'
-                >
-                  {sendingMessage ? (
-                    <div className='h-4 w-4 animate-spin rounded-full border-b-2 border-white'></div>
-                  ) : (
-                    <Send className='h-4 w-4' />
-                  )}
-                </Button>
-              </div>
-            </div>
+            <ChatHeader pack={selectedPack} formatPrice={formatPrice} />
+            <ChatMessages
+              pack={selectedPack}
+              messages={messages}
+              messagesEndRef={messagesEndRef}
+              formatTime={formatTime}
+              getMessageStatusIcon={getMessageStatusIcon}
+              loading={messagesLoading}
+            />
+            <ChatInput
+              value={newMessage}
+              onChange={setNewMessage}
+              onSend={sendMessage}
+              sending={sendingMessage}
+            />
           </>
         ) : (
           /* Estado sin conversación seleccionada */
