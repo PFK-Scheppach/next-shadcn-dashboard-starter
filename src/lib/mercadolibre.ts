@@ -329,6 +329,26 @@ export async function fetchMessageThreads(
   }
 }
 
+export async function fetchAllMessageThreads(
+  fromDate?: Date,
+  toDate?: Date
+): Promise<MercadoLibreThread[]> {
+  const limit = 50;
+  let offset = 0;
+  const allThreads: MercadoLibreThread[] = [];
+
+  while (true) {
+    const batch = await fetchMessageThreads(fromDate, toDate, limit, offset);
+    if (batch.length === 0) break;
+    allThreads.push(...batch);
+    if (batch.length < limit) break;
+    offset += limit;
+    await sleep(200);
+  }
+
+  return allThreads;
+}
+
 export async function sendBuyerMessage(
   packId: number,
   text: string,
@@ -419,7 +439,9 @@ export async function sendBuyerMessage(
 }
 
 export async function fetchMessagesForPack(
-  packId: number
+  packId: number,
+  limit = 50,
+  offset = 0
 ): Promise<MercadoLibreMessage[]> {
   const sellerId = process.env.MERCADOLIBRE_SELLER_ID;
   if (!sellerId) {
@@ -438,7 +460,7 @@ export async function fetchMessagesForPack(
   try {
     // Use the correct messages endpoint for packs
     const res = await throttledApiCall(
-      `https://api.mercadolibre.com/messages/packs/${packId}/sellers/${sellerId}?mark_as_read=false`,
+      `https://api.mercadolibre.com/messages/packs/${packId}/sellers/${sellerId}?mark_as_read=false&limit=${limit}&offset=${offset}`,
       {
         headers: {
           Authorization: `Bearer ${currentToken}`,
@@ -452,7 +474,7 @@ export async function fetchMessagesForPack(
       if (!newToken) return [];
 
       const retryRes = await throttledApiCall(
-        `https://api.mercadolibre.com/messages/packs/${packId}/sellers/${sellerId}?mark_as_read=false`,
+        `https://api.mercadolibre.com/messages/packs/${packId}/sellers/${sellerId}?mark_as_read=false&limit=${limit}&offset=${offset}`,
         {
           headers: {
             Authorization: `Bearer ${newToken}`,
@@ -517,6 +539,25 @@ export async function fetchMessagesForPack(
   }
 }
 
+export async function fetchAllMessagesForPack(
+  packId: number
+): Promise<MercadoLibreMessage[]> {
+  const limit = 50;
+  let offset = 0;
+  const all: MercadoLibreMessage[] = [];
+
+  while (true) {
+    const batch = await fetchMessagesForPack(packId, limit, offset);
+    if (batch.length === 0) break;
+    all.push(...batch);
+    if (batch.length < limit) break;
+    offset += limit;
+    await sleep(200);
+  }
+
+  return all;
+}
+
 // Generic function to fetch all messages by getting packs first, then messages for each pack
 export async function fetchMessages(): Promise<MercadoLibreMessage[]> {
   // Use current month by default to avoid API saturation
@@ -555,7 +596,7 @@ export async function fetchMessagesByDateRange(
         )
         .map((order) => order.pack_id!)
     )
-  ).slice(0, 5); // Reduce to only 5 most recent packs to avoid rate limits
+  );
 
   const dateRangeStr =
     fromDate && toDate
@@ -569,7 +610,7 @@ export async function fetchMessagesByDateRange(
   // Fetch messages for each pack with throttling
   for (const packId of packIds) {
     try {
-      const packMessages = await fetchMessagesForPack(packId);
+      const packMessages = await fetchAllMessagesForPack(packId);
       if (packMessages.length > 0) {
         allMessages.push(...packMessages);
         console.log(`Found ${packMessages.length} messages for pack ${packId}`);

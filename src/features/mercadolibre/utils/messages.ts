@@ -1,6 +1,6 @@
 import {
-  fetchMessageThreads,
-  fetchMessagesForPack,
+  fetchAllMessageThreads,
+  fetchAllMessagesForPack,
   sendBuyerMessage,
   type MercadoLibreThread,
   type MercadoLibreMessage
@@ -29,11 +29,11 @@ export interface MessageThread {
 
 export async function getMessageThreads(): Promise<MessageThread[]> {
   try {
-    const threads = await fetchMessageThreads();
+    const threads = await fetchAllMessageThreads();
     const result: MessageThread[] = [];
 
     for (const t of threads) {
-      const msgs = await fetchMessagesForPack(t.pack_id);
+      const msgs = await fetchAllMessagesForPack(t.pack_id);
       const normalized = msgs.map((m) => ({
         ...m,
         text:
@@ -46,7 +46,7 @@ export async function getMessageThreads(): Promise<MessageThread[]> {
         buyerUserId: t.other_user.id,
         buyerNickname: t.other_user.nickname || 'Cliente',
         lastMessageDate: t.last_message.message_date.created,
-        messages: normalized.slice(-5)
+        messages: normalized
       });
     }
 
@@ -62,11 +62,11 @@ export async function getMessageThreadsByDateRange(
   toDate?: Date
 ): Promise<MessageThread[]> {
   try {
-    const threads = await fetchMessageThreads(fromDate, toDate);
+    const threads = await fetchAllMessageThreads(fromDate, toDate);
     const result: MessageThread[] = [];
 
     for (const t of threads) {
-      const msgs = await fetchMessagesForPack(t.pack_id);
+      const msgs = await fetchAllMessagesForPack(t.pack_id);
       const normalized = msgs.map((m) => ({
         ...m,
         text:
@@ -79,7 +79,7 @@ export async function getMessageThreadsByDateRange(
         buyerUserId: t.other_user.id,
         buyerNickname: t.other_user.nickname || 'Cliente',
         lastMessageDate: t.last_message.message_date.created,
-        messages: normalized.slice(-5)
+        messages: normalized
       });
     }
 
