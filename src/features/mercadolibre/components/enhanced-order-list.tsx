@@ -185,8 +185,10 @@ export function EnhancedMercadoLibreOrderList({
     not_delivered: 'No entregado'
   };
 
-  const getStatusLabel = (status?: string) =>
-    statusMap[status || ''] || status || 'Desconocido';
+  const getStatusLabel = (status?: string) => {
+    if (!status) return 'Sin información';
+    return statusMap[status] || status;
+  };
 
   const getSortIcon = (field: SortField) => {
     if (sortField !== field)
@@ -342,9 +344,7 @@ export function EnhancedMercadoLibreOrderList({
                         </TableCell>
                         <TableCell>
                           <Badge variant='secondary'>
-                            {getStatusLabel(
-                              order.shipping?.status || order.status
-                            )}
+                            {getStatusLabel(order.shipping?.status)}
                           </Badge>
                         </TableCell>
                         <TableCell>
