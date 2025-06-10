@@ -1,3 +1,8 @@
+import { tokenManager } from './mercadolibre-token-manager';
+
+// Initialize token manager
+tokenManager.getValidToken().catch(console.error);
+
 export interface MercadoLibreOrder {
   id: number;
   date_created: string;
@@ -87,7 +92,44 @@ async function throttledApiCall(
   }
 
   lastApiCall = Date.now();
-  return fetch(url, options);
+
+  // Usar el token manager para obtener un token válido
+  const token = await tokenManager.getValidToken();
+
+  const optionsWithToken = {
+    ...options,
+    headers: {
+      ...options?.headers,
+      Authorization: `Bearer ${token}`
+    }
+  };
+
+  try {
+    const response = await fetch(url, optionsWithToken);
+
+    // Si obtenemos 401, es posible que el token haya expirado,
+    // pero el token manager debería manejarlo automáticamente
+    if (response.status === 401) {
+      console.log('⚠️ [API] Token inválido detectado, reintentando...');
+
+      // Forzar renovación y reintentar una vez
+      const newToken = await tokenManager.getValidToken();
+      const retryOptions = {
+        ...options,
+        headers: {
+          ...options?.headers,
+          Authorization: `Bearer ${newToken}`
+        }
+      };
+
+      return await fetch(url, retryOptions);
+    }
+
+    return response;
+  } catch (error) {
+    console.error('Error in throttledApiCall:', error);
+    throw error;
+  }
 }
 
 // Date utility functions

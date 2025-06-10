@@ -12,282 +12,541 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import {
   MessageCircle,
   Clock,
   User,
   AlertCircle,
-  TrendingUp,
-  Users,
-  Calendar
+  Package,
+  Send,
+  RefreshCw,
+  ShoppingCart,
+  Calendar,
+  Search,
+  ArrowRight,
+  Paperclip,
+  CheckCircle
 } from 'lucide-react';
-import { EnhancedMessagesList } from '@/features/mercadolibre/components/enhanced-messages-list';
-import { DateRangeFilter } from '@/features/mercadolibre/components/date-range-filter';
-import {
-  formatMessageDate,
-  type MessageThread
-} from '@/features/mercadolibre/utils/messages';
+import { toast } from 'sonner';
 
-export default function MessagesPage() {
-  const [threads, setThreads] = useState<MessageThread[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date }>({});
-  const [selectedPeriod, setSelectedPeriod] = useState('current-month');
+interface MessageOption {
+  id: string;
+  internal_description: string;
+  enabled: boolean;
+  type: 'template' | 'free_text';
+  templates?: { id: string; vars?: any }[] | null;
+  cap_available: number;
+}
 
-  useEffect(() => {
-    loadMessages();
-  }, []);
+interface Pack {
+  id: string;
+  order_id: string;
+  stage: string;
+  message_count: number;
+  has_unread_messages: boolean;
+  buyer: {
+    id: number;
+    nickname: string;
+  };
+  seller: {
+    id: number;
+    nickname: string;
+  };
+  date_created: string;
+  last_message_date: string;
+}
 
-  const loadMessages = async (fromDate?: Date, toDate?: Date) => {
+interface Message {
+  id: string;
+  text: string;
+  from: {
+    user_id: number;
+    user_name: string;
+  };
+  to: {
+    user_id: number;
+    user_name: string;
+  };
+  date_created: string;
+  status: string;
+  attachments?: any[];
+}
+
+export default function MercadoLibreMessagesPage() {
+  const [packs, setPacks] = useState<Pack[]>([]);
+  const [selectedPack, setSelectedPack] = useState<Pack | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [messageOptions, setMessageOptions] = useState<MessageOption[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [newMessage, setNewMessage] = useState('');
+  const [selectedOption, setSelectedOption] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [attachments, setAttachments] = useState<File[]>([]);
+
+  // Función para obtener packs (conversaciones)
+  const fetchPacks = async () => {
     setIsLoading(true);
     try {
-      console.log('🔄 [Messages Page] Loading messages...');
-      const params = new URLSearchParams();
-      if (fromDate && toDate) {
-        params.set('from', fromDate.toISOString());
-        params.set('to', toDate.toISOString());
+      const response = await fetch('/api/mercadolibre/packs', {
+        method: 'GET'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch packs');
       }
-      const res = await fetch(`/api/mercadolibre/threads?${params.toString()}`);
-      const json = await res.json();
-      console.log(
-        `✅ [Messages Page] Loaded ${json.threads?.length || 0} threads`
-      );
-      setThreads(json.threads || []);
+
+      const data = await response.json();
+      setPacks(data.packs || []);
     } catch (error) {
-      console.error('❌ [Messages Page] Error loading messages:', error);
-      setThreads([]);
+      console.error('Error fetching packs:', error);
+      toast.error('No se pudieron cargar las conversaciones');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleDateRangeChange = (
-    fromDate?: string,
-    toDate?: string,
-    label?: string
-  ) => {
-    const from = fromDate ? new Date(fromDate) : undefined;
-    const to = toDate ? new Date(toDate) : undefined;
+  // Función para obtener mensajes de un pack
+  const fetchMessages = async (packId: string) => {
+    setIsLoadingMessages(true);
+    try {
+      const response = await fetch(
+        `/api/mercadolibre/messages/pack/${packId}`,
+        {
+          method: 'GET'
+        }
+      );
 
-    setDateRange({ from, to });
-    setSelectedPeriod(label || 'custom');
-    loadMessages(from, to);
+      if (!response.ok) {
+        throw new Error('Failed to fetch messages');
+      }
+
+      const data = await response.json();
+      setMessages(data.messages || []);
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      toast.error('No se pudieron cargar los mensajes');
+    } finally {
+      setIsLoadingMessages(false);
+    }
   };
 
-  // Calculate stats - UPDATED for new MessageThread interface
-  const totalMessages = threads.reduce(
-    (acc, thread) => acc + thread.messages.length,
-    0
+  // Función para obtener opciones de comunicación
+  const fetchMessageOptions = async (packId: string) => {
+    try {
+      const response = await fetch(
+        `/api/mercadolibre/messages/options?pack_id=${packId}`,
+        {
+          method: 'GET'
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch message options');
+      }
+
+      const data = await response.json();
+      setMessageOptions(data.options || []);
+    } catch (error) {
+      console.error('Error fetching message options:', error);
+    }
+  };
+
+  // Función para iniciar conversación
+  const initiateConversation = async () => {
+    if (!selectedPack || !selectedOption) return;
+
+    setIsSending(true);
+    try {
+      let requestBody: any = {
+        pack_id: selectedPack.id,
+        option_id: selectedOption
+      };
+
+      // Si es una opción de template, incluir template_id
+      const option = messageOptions.find((opt) => opt.id === selectedOption);
+      if (option?.type === 'template' && selectedTemplate) {
+        requestBody.template_id = selectedTemplate;
+      }
+
+      // Si es texto libre, incluir el texto
+      if (option?.type === 'free_text' && newMessage.trim()) {
+        requestBody.text = newMessage.trim();
+      }
+
+      const response = await fetch('/api/mercadolibre/messages/initiate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to initiate conversation');
+      }
+
+      const result = await response.json();
+
+      toast.success('Conversación iniciada correctamente');
+
+      // Refrescar mensajes
+      await fetchMessages(selectedPack.id);
+      setNewMessage('');
+      setSelectedOption('');
+      setSelectedTemplate('');
+    } catch (error: any) {
+      console.error('Error initiating conversation:', error);
+      toast.error(error.message || 'No se pudo iniciar la conversación');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Función para enviar mensaje directo (cuando ya existe conversación)
+  const sendDirectMessage = async () => {
+    if (!selectedPack || !newMessage.trim()) return;
+
+    setIsSending(true);
+    try {
+      const response = await fetch(
+        `/api/mercadolibre/messages/pack/${selectedPack.id}/send`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            text: newMessage.trim(),
+            to_user_id: selectedPack.buyer.id
+          })
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send message');
+      }
+
+      const result = await response.json();
+
+      toast.success('Mensaje enviado correctamente');
+
+      // Refrescar mensajes
+      await fetchMessages(selectedPack.id);
+      setNewMessage('');
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      toast.error(error.message || 'No se pudo enviar el mensaje');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  // Función para seleccionar un pack
+  const handleSelectPack = async (pack: Pack) => {
+    setSelectedPack(pack);
+    await Promise.all([fetchMessages(pack.id), fetchMessageOptions(pack.id)]);
+  };
+
+  // Cargar packs al montar el componente
+  useEffect(() => {
+    fetchPacks();
+  }, []);
+
+  const renderPacksList = () => (
+    <div className='grid gap-4'>
+      {packs.map((pack) => (
+        <Card
+          key={pack.id}
+          className={`cursor-pointer transition-colors hover:bg-gray-50 ${
+            selectedPack?.id === pack.id ? 'border-blue-500 bg-blue-50' : ''
+          }`}
+          onClick={() => handleSelectPack(pack)}
+        >
+          <CardContent className='pt-4'>
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center space-x-3'>
+                <Package className='h-5 w-5 text-blue-500' />
+                <div>
+                  <p className='font-medium'>Orden #{pack.order_id}</p>
+                  <p className='text-sm text-gray-500'>
+                    Cliente: {pack.buyer.nickname}
+                  </p>
+                </div>
+              </div>
+              <div className='flex items-center space-x-2'>
+                {pack.has_unread_messages && (
+                  <Badge variant='destructive'>Nuevo</Badge>
+                )}
+                <Badge variant='outline'>
+                  {pack.message_count} mensaje
+                  {pack.message_count !== 1 ? 's' : ''}
+                </Badge>
+              </div>
+            </div>
+            <div className='mt-2 text-xs text-gray-400'>
+              Pack ID: {pack.id} • Etapa: {pack.stage}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
   );
-  const activeConversations = threads.filter(
-    (thread) =>
-      new Date().getTime() - new Date(thread.lastMessageDate).getTime() <
-      7 * 24 * 60 * 60 * 1000
-  ).length;
-  const uniqueBuyers = new Set(threads.map((thread) => thread.buyer.id)).size;
 
-  // Get recent activity - UPDATED for new MessageThread interface
-  const recentThreads = threads
-    .sort(
-      (a, b) =>
-        new Date(b.lastMessageDate).getTime() -
-        new Date(a.lastMessageDate).getTime()
-    )
-    .slice(0, 3);
+  const renderMessages = () => (
+    <div className='space-y-4'>
+      {messages.map((message) => {
+        const isFromSeller =
+          message.from.user_id.toString() ===
+          process.env.NEXT_PUBLIC_MERCADOLIBRE_SELLER_ID;
+        return (
+          <div
+            key={message.id}
+            className={`flex ${isFromSeller ? 'justify-end' : 'justify-start'}`}
+          >
+            <div
+              className={`max-w-xs rounded-lg px-4 py-2 lg:max-w-md ${
+                isFromSeller
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-200 text-gray-800'
+              }`}
+            >
+              <p className='text-sm'>{message.text}</p>
+              <div className='mt-2 flex items-center justify-between text-xs opacity-75'>
+                <span>{message.from.user_name}</span>
+                <span>{new Date(message.date_created).toLocaleString()}</span>
+              </div>
+              {message.status && (
+                <div className='mt-1 text-xs opacity-75'>
+                  Estado: {message.status}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 
-  if (isLoading) {
+  const renderMessageForm = () => {
+    const hasExistingConversation = messages.length > 0;
+
     return (
-      <PageContainer>
-        <div className='flex-1 space-y-6'>
-          <Heading
-            title='Mensajes MercadoLibre'
-            description='Gestiona las conversaciones con tus compradores y revisa el historial completo'
-          />
-          <LoadingSkeleton />
-        </div>
-      </PageContainer>
+      <div className='space-y-4'>
+        {!hasExistingConversation && messageOptions.length > 0 && (
+          <div className='space-y-3'>
+            <h4 className='font-medium'>
+              Opciones de comunicación disponibles:
+            </h4>
+            <select
+              value={selectedOption}
+              onChange={(e) => setSelectedOption(e.target.value)}
+              className='w-full rounded-md border p-2'
+            >
+              <option value=''>Seleccionar motivo de contacto...</option>
+              {messageOptions
+                .filter((opt) => opt.enabled && opt.cap_available > 0)
+                .map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.internal_description} ({option.cap_available}{' '}
+                    disponible{option.cap_available !== 1 ? 's' : ''})
+                  </option>
+                ))}
+            </select>
+
+            {selectedOption &&
+              (() => {
+                const option = messageOptions.find(
+                  (opt) => opt.id === selectedOption
+                );
+                if (option?.type === 'template' && option.templates) {
+                  return (
+                    <select
+                      value={selectedTemplate}
+                      onChange={(e) => setSelectedTemplate(e.target.value)}
+                      className='w-full rounded-md border p-2'
+                    >
+                      <option value=''>Seleccionar plantilla...</option>
+                      {option.templates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.id}
+                        </option>
+                      ))}
+                    </select>
+                  );
+                }
+                return null;
+              })()}
+          </div>
+        )}
+
+        {(hasExistingConversation ||
+          (selectedOption &&
+            messageOptions.find((opt) => opt.id === selectedOption)?.type ===
+              'free_text')) && (
+          <div className='space-y-3'>
+            <Textarea
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder='Escribe tu mensaje aquí...'
+              maxLength={350}
+              rows={3}
+            />
+            <div className='flex items-center justify-between'>
+              <span className='text-sm text-gray-500'>
+                {newMessage.length}/350 caracteres
+              </span>
+              <Button
+                onClick={
+                  hasExistingConversation
+                    ? sendDirectMessage
+                    : initiateConversation
+                }
+                disabled={
+                  isSending ||
+                  !newMessage.trim() ||
+                  (!hasExistingConversation && !selectedOption)
+                }
+              >
+                {isSending ? (
+                  'Enviando...'
+                ) : (
+                  <>
+                    <Send className='mr-2 h-4 w-4' />
+                    {hasExistingConversation
+                      ? 'Enviar Mensaje'
+                      : 'Iniciar Conversación'}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
     );
-  }
+  };
 
   return (
-    <PageContainer>
-      <div className='flex-1 space-y-6'>
-        <Heading
-          title='Mensajes MercadoLibre'
-          description='Gestiona las conversaciones con tus compradores y revisa el historial completo'
-        />
-
-        {/* Date Range Filter */}
-        <DateRangeFilter
-          onDateRangeChange={handleDateRangeChange}
-          isLoading={isLoading}
-        />
-
-        {/* Filter Status Badge */}
-        <div className='flex items-center gap-2'>
-          <Badge variant='outline' className='flex items-center gap-1'>
-            <Calendar className='h-3 w-3' />
-            {selectedPeriod === 'current-month'
-              ? 'Mes actual'
-              : selectedPeriod === 'all-time'
-                ? 'Todo el tiempo'
-                : 'Período personalizado'}
-          </Badge>
-          <Badge variant='secondary'>
-            {threads.length} conversacion{threads.length !== 1 ? 'es' : ''}
-          </Badge>
+    <PageContainer scrollable>
+      <div className='space-y-4'>
+        <div className='flex items-center justify-between'>
+          <Heading
+            title='Mensajes MercadoLibre'
+            description='Gestiona las conversaciones con tus compradores usando packs de órdenes'
+          />
+          <Button onClick={fetchPacks} disabled={isLoading} variant='outline'>
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
+            />
+            Actualizar
+          </Button>
         </div>
 
-        {/* Stats Overview */}
-        <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
-          <Card>
-            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-              <CardTitle className='text-sm font-medium'>
-                Total Mensajes
-              </CardTitle>
-              <MessageCircle className='text-muted-foreground h-4 w-4' />
-            </CardHeader>
-            <CardContent>
-              <div className='text-2xl font-bold'>{totalMessages}</div>
-              <p className='text-muted-foreground text-xs'>
-                En todas las conversaciones
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-              <CardTitle className='text-sm font-medium'>
-                Conversaciones
-              </CardTitle>
-              <TrendingUp className='text-muted-foreground h-4 w-4' />
-            </CardHeader>
-            <CardContent>
-              <div className='text-2xl font-bold'>{threads.length}</div>
-              <p className='text-muted-foreground text-xs'>
-                Total de hilos de conversación
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-              <CardTitle className='text-sm font-medium'>
-                Activas (7 días)
-              </CardTitle>
-              <Clock className='text-muted-foreground h-4 w-4' />
-            </CardHeader>
-            <CardContent>
-              <div className='text-2xl font-bold'>{activeConversations}</div>
-              <p className='text-muted-foreground text-xs'>
-                Conversaciones recientes
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-              <CardTitle className='text-sm font-medium'>Compradores</CardTitle>
-              <Users className='text-muted-foreground h-4 w-4' />
-            </CardHeader>
-            <CardContent>
-              <div className='text-2xl font-bold'>{uniqueBuyers}</div>
-              <p className='text-muted-foreground text-xs'>
-                Compradores únicos
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Separator />
-
-        {/* Recent Activity - UPDATED for new MessageThread interface */}
-        {recentThreads.length > 0 && (
-          <>
+        <div className='grid grid-cols-1 gap-6 lg:grid-cols-3'>
+          {/* Panel izquierdo: Lista de packs */}
+          <div className='lg:col-span-1'>
             <Card>
               <CardHeader>
                 <CardTitle className='flex items-center gap-2'>
-                  <Clock className='h-5 w-5' />
-                  Actividad Reciente
+                  <Package className='h-5 w-5' />
+                  Packs Disponibles
                 </CardTitle>
                 <CardDescription>
-                  Últimas conversaciones con actividad
+                  {packs.length} packs encontrados
                 </CardDescription>
+                <div className='relative'>
+                  <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform' />
+                  <Input
+                    placeholder='Buscar por comprador, pack ID o producto...'
+                    className='pl-10'
+                  />
+                </div>
               </CardHeader>
-              <CardContent>
-                <div className='space-y-3'>
-                  {recentThreads.map((thread) => (
-                    <div
-                      key={`${thread.pack_id}-${thread.buyer.id}`}
-                      className='flex items-center justify-between rounded-lg border p-3'
-                    >
-                      <div className='flex items-center gap-3'>
-                        <User className='text-muted-foreground h-5 w-5' />
-                        <div>
-                          <p className='font-medium'>{thread.buyer.nickname}</p>
-                          <p className='text-muted-foreground text-sm'>
-                            Pack #{thread.pack_id}
-                          </p>
-                        </div>
-                      </div>
-                      <div className='text-right'>
-                        <Badge variant='secondary'>
-                          {thread.messages.length} mensaje
-                          {thread.messages.length !== 1 ? 's' : ''}
-                        </Badge>
-                        <p className='text-muted-foreground mt-1 text-xs'>
-                          {formatMessageDate(thread.lastMessageDate)}
-                        </p>
-                      </div>
+              <CardContent className='p-0'>
+                <div className='max-h-[600px] overflow-y-auto'>
+                  {isLoading ? (
+                    <div className='text-muted-foreground p-4 text-center'>
+                      <RefreshCw className='mx-auto mb-2 h-6 w-6 animate-spin' />
+                      Cargando packs...
                     </div>
-                  ))}
+                  ) : packs.length === 0 ? (
+                    <div className='text-muted-foreground p-4 text-center'>
+                      <Package className='mx-auto mb-2 h-8 w-8 opacity-50' />
+                      No se encontraron packs
+                    </div>
+                  ) : (
+                    renderPacksList()
+                  )}
                 </div>
               </CardContent>
             </Card>
+          </div>
 
-            <Separator />
-          </>
-        )}
+          {/* Panel derecho: Mensajes del pack seleccionado */}
+          <div className='lg:col-span-2'>
+            <Card className='h-full'>
+              {selectedPack ? (
+                <>
+                  <CardHeader>
+                    <CardTitle className='flex items-center gap-2'>
+                      <MessageCircle className='h-5 w-5' />
+                      Conversación con {selectedPack.buyer.nickname}
+                    </CardTitle>
+                    <CardDescription>
+                      Pack ID: {selectedPack.id}
+                    </CardDescription>
+                  </CardHeader>
 
-        {/* Enhanced Messages List */}
-        <EnhancedMessagesList initialThreads={threads} />
+                  <CardContent className='flex h-[600px] flex-col'>
+                    {/* Área de mensajes */}
+                    <div className='bg-muted/10 mb-4 flex-1 overflow-y-auto rounded-md border p-4'>
+                      {isLoadingMessages ? (
+                        <div className='text-muted-foreground text-center'>
+                          <RefreshCw className='mx-auto mb-2 h-6 w-6 animate-spin' />
+                          Cargando mensajes...
+                        </div>
+                      ) : messages.length === 0 ? (
+                        <div className='text-muted-foreground text-center'>
+                          <MessageCircle className='mx-auto mb-2 h-8 w-8 opacity-50' />
+                          No hay mensajes en esta conversación
+                          <br />
+                          <span className='text-sm'>
+                            Sé el primero en escribir
+                          </span>
+                        </div>
+                      ) : (
+                        renderMessages()
+                      )}
+                    </div>
+
+                    {/* Formulario para enviar mensaje */}
+                    <div className='flex gap-2'>{renderMessageForm()}</div>
+                  </CardContent>
+                </>
+              ) : (
+                <CardContent className='flex h-[600px] items-center justify-center'>
+                  <div className='text-muted-foreground text-center'>
+                    <Package className='mx-auto mb-4 h-12 w-12 opacity-50' />
+                    <h3 className='mb-2 text-lg font-medium'>
+                      Selecciona un pack
+                    </h3>
+                    <p className='text-sm'>
+                      Elige un pack de la lista para ver y gestionar la
+                      conversación
+                    </p>
+                  </div>
+                </CardContent>
+              )}
+            </Card>
+          </div>
+        </div>
       </div>
     </PageContainer>
-  );
-}
-
-function LoadingSkeleton() {
-  return (
-    <div className='space-y-6'>
-      {/* Stats Skeleton */}
-      <div className='grid gap-4 md:grid-cols-2 lg:grid-cols-4'>
-        {[...Array(4)].map((_, i) => (
-          <Card key={i} className='animate-pulse'>
-            <CardHeader className='space-y-0 pb-2'>
-              <div className='bg-muted h-4 w-24 rounded'></div>
-            </CardHeader>
-            <CardContent>
-              <div className='bg-muted mb-2 h-8 w-16 rounded'></div>
-              <div className='bg-muted h-3 w-32 rounded'></div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Content Skeleton */}
-      <div className='space-y-4'>
-        {[...Array(3)].map((_, i) => (
-          <Card key={i} className='animate-pulse'>
-            <CardHeader>
-              <div className='bg-muted h-6 w-1/3 rounded'></div>
-              <div className='bg-muted h-4 w-1/2 rounded'></div>
-            </CardHeader>
-            <CardContent>
-              <div className='bg-muted h-32 rounded'></div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
   );
 }
