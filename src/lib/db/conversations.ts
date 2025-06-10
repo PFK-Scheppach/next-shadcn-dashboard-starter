@@ -126,6 +126,23 @@ export class ConversationService {
   }
 
   /**
+   * Obtiene el conteo de mensajes para un pack específico
+   */
+  async getMessageCount(packId: string): Promise<number> {
+    const { count, error } = await supabaseAdmin
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('pack_id', packId);
+
+    if (error) {
+      console.error('Error counting messages:', error);
+      return 0;
+    }
+
+    return count || 0;
+  }
+
+  /**
    * Obtiene mensajes de una conversación
    */
   async getMessages(params: {

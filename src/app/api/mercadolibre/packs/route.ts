@@ -238,25 +238,29 @@ export async function GET(req: NextRequest) {
         `🔍 [API] Enriqueciendo ${paginatedPacks.length} packs con conteo de mensajes...`
       );
 
+      const conversationService = new (
+        await import('@/lib/db/conversations')
+      ).ConversationService();
+
       finalPacks = await Promise.all(
         paginatedPacks.map(async (pack) => {
           try {
-            const messagesResult = await syncService.getMessagesWithSync(
-              pack.id,
-              {
-                limit: 1,
-                offset: 0,
-                forceSync: false // Solo forzar si no hay datos
-              }
+            // Usar conteo directo de mensajes desde la base de datos
+            const messageCount = await conversationService.getMessageCount(
+              pack.id
             );
+
+            // Obtener información de la conversación si existe
+            const conversation =
+              await conversationService.getConversationByPackId(pack.id);
 
             return {
               ...pack,
-              message_count: messagesResult.total,
-              has_messages: messagesResult.total > 0,
-              conversation_status:
-                messagesResult.total > 0 ? 'active' : 'unknown',
-              last_message_date: pack.date_created // Por ahora usar fecha de creación
+              message_count: messageCount,
+              has_messages: messageCount > 0,
+              conversation_status: conversation ? 'active' : 'unknown',
+              last_message_date:
+                conversation?.last_message_date || pack.date_created
             };
           } catch (error) {
             console.warn(

@@ -89,12 +89,38 @@ export class MercadoLibreSyncService {
                 }
               }
 
+              // Obtener información completa de la orden para price y currency
+              let orderData = null;
+              let total_amount = 0;
+              let currency_id = 'CLP';
+              let order_status = conv.conversation_status || 'unknown';
+
+              if (conv.order_id) {
+                try {
+                  const { fetchOrderDetails } = await import(
+                    '@/lib/mercadolibre'
+                  );
+                  orderData = await fetchOrderDetails(conv.order_id);
+                  if (orderData) {
+                    total_amount = orderData.total_amount || 0;
+                    currency_id = orderData.currency_id || 'CLP';
+                    order_status =
+                      orderData.status || conv.conversation_status || 'unknown';
+                  }
+                } catch (error) {
+                  console.warn(
+                    `⚠️ Could not load order data for order ${conv.order_id}:`,
+                    error
+                  );
+                }
+              }
+
               return {
                 id: conv.pack_id,
                 order_id: conv.order_id || conv.pack_id,
                 pack_id: conv.pack_id,
                 is_pack_id_fallback: false,
-                stage: conv.conversation_status || 'unknown',
+                stage: order_status,
                 status_detail: null,
                 message_count: conv.total_messages || 0,
                 has_messages: (conv.total_messages || 0) > 0,
@@ -111,9 +137,9 @@ export class MercadoLibreSyncService {
                 date_created: conv.created_at,
                 last_message_date: conv.last_message_date || conv.created_at,
                 orders_count: 1,
-                order_status: conv.conversation_status || 'unknown',
-                currency_id: 'CLP', // TODO: Agregar a la DB
-                total_amount: null, // TODO: Agregar a la DB
+                order_status: order_status,
+                currency_id: currency_id,
+                total_amount: total_amount,
                 product_info: productInfo,
                 shipping: shippingInfo
               };
