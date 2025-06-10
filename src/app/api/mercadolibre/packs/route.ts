@@ -1,75 +1,162 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { tokenManager } from '@/lib/mercadolibre-token-manager';
+import { MercadoLibreSyncService } from '@/lib/mercadolibre-sync';
+import { getCachedOrderInfo } from '@/lib/mercadolibre-products';
 
-// Helper function to get message count for a pack using direct API calls with token manager
-async function getPackMessageCount(packId: string): Promise<{
-  messageCount: number;
-  hasMessages: boolean;
-  lastMessageDate?: string;
-  conversationStatus?: string;
-}> {
-  try {
-    console.log(`🔍 [API] Checking messages for pack ${packId}`);
+const syncService = new MercadoLibreSyncService();
 
-    // Usar token manager para obtener token válido
-    const access_token = await tokenManager.getValidToken();
+// Helper function to fetch and sync packs when cache is empty or stale
+async function fetchAndSyncPacksFromAPI(
+  limit: number = 50,
+  daysBack: number = 30,
+  sellerId?: string
+): Promise<any[]> {
+  console.log('🔄 [API] Fetching fresh data from MercadoLibre...');
 
-    if (!access_token) {
-      throw new Error('No access token available for message count');
-    }
+  const access_token = await tokenManager.getValidToken();
+  if (!access_token) {
+    throw new Error('No access token available');
+  }
 
-    const sellerId = process.env.MERCADOLIBRE_SELLER_ID;
-    const messagesUrl = `https://api.mercadolibre.com/messages/packs/${packId}/sellers/${sellerId}?tag=post_sale&mark_as_read=false&limit=50`;
+  const maxLimit = 50;
+  let allOrders: any[] = [];
+  const maxPages = Math.min(Math.ceil(limit / maxLimit), 10); // Límite máximo de páginas
 
-    const response = await fetch(messagesUrl, {
+  // Obtener órdenes paginando
+  for (let page = 0; page < maxPages; page++) {
+    const offset = page * maxLimit;
+    const ordersUrl = `https://api.mercadolibre.com/orders/search?seller=${sellerId}&sort=date_desc&limit=${maxLimit}&offset=${offset}`;
+
+    const ordersResponse = await fetch(ordersUrl, {
       headers: {
         Authorization: `Bearer ${access_token}`,
         'Content-Type': 'application/json'
       }
     });
 
-    if (!response.ok) {
-      // Si es 404, probablemente no hay mensajes
-      if (response.status === 404) {
-        console.log(`📭 Pack ${packId} has no messages (404)`);
-        return {
-          messageCount: 0,
-          hasMessages: false,
-          conversationStatus: 'unknown'
-        };
+    if (!ordersResponse.ok) {
+      const errorData = await ordersResponse.json();
+      console.error(`❌ Error fetching orders page ${page + 1}:`, errorData);
+      if (page === 0) {
+        throw new Error(`Failed to fetch orders: ${JSON.stringify(errorData)}`);
       }
-      throw new Error(`API call failed: ${response.status}`);
+      break;
     }
 
-    const messagesData = await response.json();
-    const messages = messagesData.messages || [];
-    const messageCount = messages.length;
-    const hasMessages = messageCount > 0;
+    const pageData = await ordersResponse.json();
+    const pageOrders = pageData.results || [];
 
-    // Get the most recent message date if any
-    const lastMessageDate =
-      messages.length > 0 ? messages[0].message_date?.created : undefined;
+    if (pageOrders.length === 0) {
+      console.log(
+        `📄 No more orders found at page ${page + 1}, stopping pagination`
+      );
+      break;
+    }
 
-    const conversationStatus = messagesData.conversation_status?.blocked
-      ? 'blocked'
-      : 'active';
+    allOrders.push(...pageOrders);
 
-    console.log(`✅ [API] Pack ${packId} has ${messageCount} messages`);
-
-    return {
-      messageCount,
-      hasMessages,
-      lastMessageDate,
-      conversationStatus
-    };
-  } catch (error) {
-    console.error(`❌ Error fetching message count for pack ${packId}:`, error);
-    return {
-      messageCount: 0,
-      hasMessages: false,
-      conversationStatus: 'error'
-    };
+    // Rate limiting
+    if (page < maxPages - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
   }
+
+  console.log(`📊 Found ${allOrders.length} orders from API`);
+
+  // Filtrar por fecha si es necesario
+  if (daysBack > 0 && daysBack < 365) {
+    const cutoffDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+    allOrders = allOrders.filter((order: any) => {
+      if (!order.date_created) return false;
+      const orderDate = new Date(order.date_created);
+      return orderDate >= cutoffDate;
+    });
+    console.log(
+      `📊 Filtered to ${allOrders.length} orders from last ${daysBack} days`
+    );
+  }
+
+  // Sincronizar conversaciones y obtener información del producto
+  const packsMap = new Map();
+  console.log(
+    `🔄 [API] Enriqueciendo ${allOrders.length} órdenes con información de productos...`
+  );
+
+  for (const order of allOrders) {
+    const packId = order.pack_id
+      ? order.pack_id.toString()
+      : order.id.toString();
+
+    if (!packsMap.has(packId)) {
+      // Sincronizar conversación en la base de datos
+      try {
+        await syncService.syncConversation(packId, order);
+      } catch (error) {
+        console.error(`❌ Error syncing conversation ${packId}:`, error);
+      }
+
+      // Obtener información detallada de la orden con productos
+      let productInfo = null;
+      let shippingInfo = null;
+
+      try {
+        const orderInfo = await getCachedOrderInfo(order.id.toString());
+        if (orderInfo && orderInfo.products.length > 0) {
+          // Tomar el primer producto (la mayoría de órdenes tienen 1 producto)
+          const firstProduct = orderInfo.products[0];
+          productInfo = {
+            title: firstProduct.title,
+            thumbnail: firstProduct.thumbnail,
+            quantity: orderInfo.products.reduce(
+              (sum, p) => sum + p.quantity,
+              0
+            ),
+            unit_price: firstProduct.unit_price
+          };
+
+          // Información de envío si está disponible
+          if (orderInfo.shipping) {
+            shippingInfo = {
+              status: orderInfo.shipping.status,
+              tracking_number: orderInfo.shipping.id
+            };
+          }
+        }
+      } catch (error) {
+        console.warn(
+          `⚠️ Could not load product info for order ${order.id}:`,
+          error
+        );
+      }
+
+      packsMap.set(packId, {
+        id: packId,
+        order_id: order.id,
+        pack_id: order.pack_id,
+        is_pack_id_fallback: !order.pack_id,
+        stage: order.status,
+        buyer: {
+          id: order.buyer.id,
+          nickname: order.buyer.nickname
+        },
+        seller: {
+          id: order.seller.id,
+          nickname: order.seller.nickname
+        },
+        date_created: order.date_created,
+        order_status: order.status,
+        currency_id: order.currency_id,
+        total_amount: order.total_amount,
+        product_info: productInfo,
+        shipping: shippingInfo
+      });
+
+      // Rate limiting para evitar sobrecargar la API
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+
+  return Array.from(packsMap.values());
 }
 
 export async function GET(req: NextRequest) {
@@ -77,198 +164,101 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
-    const daysBack = parseInt(searchParams.get('days_back') || '30'); // Aumentar a 30 días por defecto
+    const daysBack = parseInt(searchParams.get('days_back') || '30');
     const includeMessageCount =
-      searchParams.get('include_messages') !== 'false'; // Default to true
+      searchParams.get('include_messages') !== 'false';
     const prioritizeWithMessages =
-      searchParams.get('prioritize_messages') !== 'false'; // Default to true
-    const showAll = searchParams.get('show_all') === 'true'; // Nuevo parámetro para mostrar absolutamente todo
-
-    console.log(`📦 [API] Obteniendo TODOS los packs de conversaciones`, {
-      limit,
-      offset,
-      daysBack: showAll ? 'ALL' : daysBack,
-      includeMessageCount,
-      prioritizeWithMessages,
-      showAll
-    });
-
-    const access_token = await tokenManager.getValidToken();
-
-    if (!access_token) {
-      return NextResponse.json(
-        { error: 'No access token available' },
-        { status: 401 }
-      );
-    }
-
+      searchParams.get('prioritize_messages') !== 'false';
+    const forceSync = searchParams.get('force_sync') === 'true';
     const sellerId = process.env.MERCADOLIBRE_SELLER_ID;
 
-    // MercadoLibre tiene límite máximo de 51 por request, necesitamos paginar
-    const maxLimit = 50; // Usar 50 para estar seguros
-    let allOrders: any[] = [];
+    console.log('📦 [API] Obteniendo packs con cache de base de datos', {
+      limit,
+      offset,
+      daysBack,
+      includeMessageCount,
+      prioritizeWithMessages,
+      forceSync
+    });
 
-    // Determinar cuántas páginas obtener según el modo
-    const maxPages = showAll ? 20 : 10; // 20 páginas = ~1000 órdenes para show_all
-
-    console.log(
-      `🔄 Fetching ${showAll ? 'ALL' : 'recent'} orders (max ${maxPages} pages of ${maxLimit} each)`
-    );
-
-    // Obtener órdenes paginando
-    for (let page = 0; page < maxPages; page++) {
-      const offset = page * maxLimit;
-      const ordersUrl = `https://api.mercadolibre.com/orders/search?seller=${sellerId}&sort=date_desc&limit=${maxLimit}&offset=${offset}`;
-
-      console.log(`🔄 Fetching page ${page + 1}/${maxPages}: ${ordersUrl}`);
-
-      const ordersResponse = await fetch(ordersUrl, {
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-          'Content-Type': 'application/json'
-        }
+    // 1. Intentar obtener desde el servicio de sincronización (cache)
+    let result;
+    try {
+      result = await syncService.getPacksWithSync({
+        limit: limit + offset, // Obtener más para paginar después
+        offset: 0,
+        sellerId,
+        daysBack,
+        includeMessageCount,
+        prioritizeWithMessages,
+        forceSync
       });
+    } catch (cacheError) {
+      console.error(
+        '❌ Error accessing cache, falling back to API:',
+        cacheError
+      );
 
-      if (!ordersResponse.ok) {
-        const errorData = await ordersResponse.json();
-        console.error(`❌ Error fetching orders page ${page + 1}:`, errorData);
-
-        // Si es la primera página, es un error crítico
-        if (page === 0) {
-          return NextResponse.json(
-            { error: 'Failed to fetch orders', details: errorData },
-            { status: ordersResponse.status }
-          );
-        }
-        // Si no es la primera página, solo logging y continuar
-        break;
-      }
-
-      const pageData = await ordersResponse.json();
-      const pageOrders = pageData.results || [];
-
-      console.log(`✅ Page ${page + 1}: Found ${pageOrders.length} orders`);
-
-      // Si no hay más órdenes, terminar paginación
-      if (pageOrders.length === 0) {
-        console.log(
-          `📄 No more orders found at page ${page + 1}, stopping pagination`
-        );
-        break;
-      }
-
-      allOrders.push(...pageOrders);
-
-      // Pequeña pausa entre requests para ser respetuosos con la API
-      if (page < maxPages - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      }
+      // 2. Si falla el cache, obtener directamente de la API
+      const freshPacks = await fetchAndSyncPacksFromAPI(
+        limit * 2,
+        daysBack,
+        sellerId
+      );
+      result = {
+        packs: freshPacks,
+        total: freshPacks.length,
+        fromCache: false
+      };
     }
 
-    let orders = allOrders;
-
-    console.log(`📊 Found ${orders.length} total orders from API`);
-
-    // Solo filtrar por fecha si no se solicita mostrar todo y hay un límite razonable
-    if (!showAll && daysBack > 0 && daysBack < 365) {
-      try {
-        const cutoffDate = new Date(
-          new Date().getTime() - daysBack * 24 * 60 * 60 * 1000
-        );
-        const ordersBeforeFilter = orders.length;
-        orders = orders.filter((order: any) => {
-          if (!order.date_created) return false;
-          const orderDate = new Date(order.date_created);
-          return orderDate >= cutoffDate;
-        });
-        console.log(
-          `📊 Filtered from ${ordersBeforeFilter} to ${orders.length} orders from last ${daysBack} days`
-        );
-      } catch (error) {
-        console.error('Error filtering orders by date:', error);
-        // Continue without filtering if there's an error
-      }
+    // 3. Si no hay datos en cache y no hay fallo, sincronizar desde API
+    if (result.packs.length === 0 && !forceSync) {
+      console.log('📭 No data in cache, fetching from API...');
+      const freshPacks = await fetchAndSyncPacksFromAPI(
+        limit * 2,
+        daysBack,
+        sellerId
+      );
+      result = {
+        packs: freshPacks,
+        total: freshPacks.length,
+        fromCache: false
+      };
     }
 
-    // Incluir TODAS las órdenes: con pack_id Y sin pack_id (usando order_id como fallback)
-    const packsMap = new Map();
+    // 4. Aplicar paginación
+    const totalPacks = result.total;
+    const paginatedPacks = result.packs.slice(offset, offset + limit);
 
-    for (const order of orders) {
-      // Usar pack_id si existe, sino usar order_id como pack_id
-      const packId = order.pack_id
-        ? order.pack_id.toString()
-        : order.id.toString();
-      const isPackIdFallback = !order.pack_id;
+    // 5. Enriquecer con conteo de mensajes si se solicita
+    let finalPacks = paginatedPacks;
+    if (includeMessageCount && paginatedPacks.length > 0) {
+      console.log(
+        `🔍 [API] Enriqueciendo ${paginatedPacks.length} packs con conteo de mensajes...`
+      );
 
-      if (!packsMap.has(packId)) {
-        packsMap.set(packId, {
-          id: packId,
-          order_id: order.id,
-          pack_id: order.pack_id,
-          is_pack_id_fallback: isPackIdFallback,
-          stage: order.status,
-          status_detail: order.status_detail || null,
-          message_count: 0,
-          has_messages: false,
-          has_unread_messages: false,
-          conversation_status: 'unknown', // No pre-juzgar el estado
-          buyer: {
-            id: order.buyer.id,
-            nickname: order.buyer.nickname
-          },
-          seller: {
-            id: order.seller.id,
-            nickname: order.seller.nickname
-          },
-          date_created: order.date_created,
-          last_message_date: order.date_created,
-          orders_count: 1,
-          order_status: order.status,
-          currency_id: order.currency_id,
-          total_amount: order.total_amount
-        });
-      } else {
-        // If pack already exists, increment order count
-        const existingPack = packsMap.get(packId);
-        existingPack.orders_count += 1;
-        packsMap.set(packId, existingPack);
-      }
-    }
-
-    let packs = Array.from(packsMap.values());
-
-    console.log(
-      `📦 Found ${packs.length} unique packs from ${orders.length} orders`
-    );
-    console.log(
-      `📦 Breakdown: ${packs.filter((p) => !p.is_pack_id_fallback).length} with pack_id, ${packs.filter((p) => p.is_pack_id_fallback).length} using order_id as fallback`
-    );
-
-    // Si se solicita incluir message count, obtener mensajes para cada pack
-    if (includeMessageCount && packs.length > 0) {
-      console.log(`🔍 Fetching message counts for ${packs.length} packs...`);
-
-      // Process packs in batches to avoid overwhelming the API
-      const batchSize = 5; // Reducir tamaño del batch para ser más cuidadosos
-      const packsWithMessages = [];
-
-      for (let i = 0; i < packs.length; i += batchSize) {
-        const batch = packs.slice(i, i + batchSize);
-
-        const batchPromises = batch.map(async (pack) => {
+      finalPacks = await Promise.all(
+        paginatedPacks.map(async (pack) => {
           try {
-            const messageInfo = await getPackMessageCount(pack.id);
+            const messagesResult = await syncService.getMessagesWithSync(
+              pack.id,
+              {
+                limit: 1,
+                offset: 0,
+                forceSync: false // Solo forzar si no hay datos
+              }
+            );
 
             return {
               ...pack,
-              message_count: messageInfo.messageCount,
-              has_messages: messageInfo.hasMessages,
-              conversation_status: messageInfo.conversationStatus || 'unknown',
-              last_message_date:
-                messageInfo.lastMessageDate || pack.last_message_date
+              message_count: messagesResult.total,
+              has_messages: messagesResult.total > 0,
+              conversation_status:
+                messagesResult.total > 0 ? 'active' : 'unknown',
+              last_message_date: pack.date_created // Por ahora usar fecha de creación
             };
           } catch (error) {
-            // Si hay error obteniendo mensajes, mantener el pack pero sin info de mensajes
             console.warn(
               `⚠️ Could not get message count for pack ${pack.id}:`,
               error
@@ -278,105 +268,53 @@ export async function GET(req: NextRequest) {
               message_count: 0,
               has_messages: false,
               conversation_status: 'error',
-              last_message_date: pack.last_message_date
+              last_message_date: pack.date_created
             };
           }
-        });
-
-        const batchResults = await Promise.all(batchPromises);
-        packsWithMessages.push(...batchResults);
-
-        // Small delay between batches to be respectful to the API
-        if (i + batchSize < packs.length) {
-          await new Promise((resolve) => setTimeout(resolve, 200)); // Aumentar delay
-        }
-
-        console.log(
-          `✅ Processed batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(packs.length / batchSize)}`
-        );
-      }
-
-      packs = packsWithMessages;
-      console.log(`✅ Message counts fetched for all packs`);
+        })
+      );
     }
 
-    // Ordenar packs: primero los que tienen mensajes, luego por fecha
-    if (prioritizeWithMessages) {
-      packs.sort((a, b) => {
-        // First, prioritize packs with messages
+    // 6. Ordenar si se solicita priorizar mensajes
+    if (prioritizeWithMessages && includeMessageCount) {
+      finalPacks.sort((a, b) => {
+        // Priorizar packs con mensajes
         if (a.has_messages && !b.has_messages) return -1;
         if (!a.has_messages && b.has_messages) return 1;
 
-        // If both have messages or both don't, sort by message count (desc) then by date
+        // Si ambos tienen mensajes, ordenar por cantidad
         if (a.has_messages && b.has_messages) {
           if (a.message_count !== b.message_count) {
             return b.message_count - a.message_count;
           }
         }
 
-        // Finally, sort by last message date or creation date
+        // Finalmente ordenar por fecha
         const dateA = new Date(a.last_message_date || a.date_created);
         const dateB = new Date(b.last_message_date || b.date_created);
         return dateB.getTime() - dateA.getTime();
       });
-
-      console.log(
-        `📊 Packs sorted - ${packs.filter((p) => p.has_messages).length} with messages, ${packs.filter((p) => !p.has_messages).length} without messages`
-      );
     }
 
-    // Apply pagination after sorting
-    const totalPacks = packs.length;
-    const paginatedPacks = packs.slice(offset, offset + limit);
-
     console.log(
-      `✅ [API] Returning ${paginatedPacks.length} packs (${offset}-${offset + paginatedPacks.length} of ${totalPacks})`
+      `✅ [API] Returning ${finalPacks.length} packs (${offset}-${offset + finalPacks.length} of ${totalPacks}) [${result.fromCache ? 'CACHED' : 'FRESH'}]`
     );
 
     return NextResponse.json({
-      packs: paginatedPacks,
+      packs: finalPacks,
       total: totalPacks,
+      cached: result.fromCache,
       summary: {
         total_packs: totalPacks,
-        packs_with_messages: packs.filter((p) => p.has_messages).length,
-        packs_without_messages: packs.filter((p) => !p.has_messages).length,
-        packs_with_pack_id: packs.filter((p) => !p.is_pack_id_fallback).length,
-        packs_using_order_id: packs.filter((p) => p.is_pack_id_fallback).length,
-        conversation_statuses: {
-          active: packs.filter((p) => p.conversation_status === 'active')
-            .length,
-          blocked: packs.filter((p) => p.conversation_status === 'blocked')
-            .length,
-          unknown: packs.filter((p) => p.conversation_status === 'unknown')
-            .length,
-          error: packs.filter((p) => p.conversation_status === 'error').length
-        },
-        order_statuses: {
-          confirmed: packs.filter((p) => p.order_status === 'confirmed').length,
-          paid: packs.filter((p) => p.order_status === 'paid').length,
-          shipped: packs.filter((p) => p.order_status === 'shipped').length,
-          delivered: packs.filter((p) => p.order_status === 'delivered').length,
-          cancelled: packs.filter((p) => p.order_status === 'cancelled').length,
-          other: packs.filter(
-            (p) =>
-              ![
-                'confirmed',
-                'paid',
-                'shipped',
-                'delivered',
-                'cancelled'
-              ].includes(p.order_status)
-          ).length
-        },
-        days_searched: showAll ? 'ALL' : daysBack,
+        packs_with_messages: finalPacks.filter((p) => p.has_messages).length,
+        packs_without_messages: finalPacks.filter((p) => !p.has_messages)
+          .length,
+        data_source: result.fromCache ? 'database_cache' : 'mercadolibre_api',
         search_parameters: {
-          show_all: showAll,
           include_messages: includeMessageCount,
           prioritize_messages: prioritizeWithMessages,
-          orders_fetched: orders.length,
-          max_pages: maxPages,
-          orders_per_page: maxLimit,
-          total_orders_fetched: orders.length
+          days_back: daysBack,
+          force_sync: forceSync
         }
       },
       paging: {
@@ -389,9 +327,12 @@ export async function GET(req: NextRequest) {
     });
   } catch (error: any) {
     console.error('❌ Error fetching packs:', error);
-
     return NextResponse.json(
-      { error: 'Failed to fetch packs', message: error.message },
+      {
+        error: 'Failed to fetch packs',
+        message: error.message,
+        cached: false
+      },
       { status: 500 }
     );
   }

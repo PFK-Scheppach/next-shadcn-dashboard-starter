@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getPackMessages } from '@/lib/mercadolibre-messaging';
+import { MercadoLibreSyncService } from '@/lib/mercadolibre-sync';
+
+const syncService = new MercadoLibreSyncService();
 
 export async function GET(
   request: NextRequest,
@@ -13,6 +15,7 @@ export async function GET(
     const markAsRead = searchParams.get('mark_as_read') !== 'false';
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = parseInt(searchParams.get('offset') || '0');
+    const forceSync = searchParams.get('force_sync') === 'true';
 
     if (!packId) {
       return NextResponse.json(
@@ -21,22 +24,44 @@ export async function GET(
       );
     }
 
-    console.log(`🔍 [API] Obteniendo mensajes para pack ${packId}`, {
-      markAsRead,
+    console.log(
+      `🔍 [API] Obteniendo mensajes para pack ${packId} (con cache DB)`,
+      {
+        markAsRead,
+        limit,
+        offset,
+        forceSync
+      }
+    );
+
+    // Usar el servicio de sincronización que maneja el cache de base de datos
+    const messagesResult = await syncService.getMessagesWithSync(packId, {
       limit,
-      offset
+      offset,
+      forceSync
     });
 
-    const messagesData = await getPackMessages(packId, {
-      mark_as_read: markAsRead,
-      limit,
-      offset
-    });
+    // Preparar respuesta en el formato esperado por el frontend
+    const messagesData = {
+      messages: messagesResult.messages,
+      paging: {
+        limit,
+        offset,
+        total: messagesResult.total
+      },
+      conversation_status: {
+        blocked: false // Asumimos no bloqueado por defecto
+      },
+      pack_id: packId,
+      cached: messagesResult.fromCache,
+      error: messagesResult.error || null
+    };
 
     console.log(`✅ [API] Mensajes obtenidos exitosamente:`, {
       pack_id: packId,
-      total_messages: messagesData.messages.length,
-      conversation_blocked: messagesData.conversation_status.blocked,
+      total_messages: messagesResult.total,
+      returned_messages: messagesResult.messages.length,
+      cached: messagesResult.fromCache,
       paging: messagesData.paging
     });
 
@@ -49,16 +74,27 @@ export async function GET(
     let statusCode = 500;
 
     try {
-      const errorData = JSON.parse(error.message.split(' - ')[1] || '{}');
-      if (errorData.error || errorData.message) {
-        errorMessage = errorData.message || errorData.error;
-        if (error.message.includes('403')) statusCode = 403;
-        if (error.message.includes('404')) statusCode = 404;
+      if (error.message.includes('API call failed:')) {
+        const errorParts = error.message.split(' - ');
+        if (errorParts.length > 1) {
+          const errorData = JSON.parse(errorParts[1]);
+          if (errorData.message || errorData.error) {
+            errorMessage = errorData.message || errorData.error;
+            if (error.message.includes('403')) statusCode = 403;
+            if (error.message.includes('404')) statusCode = 404;
+          }
+        }
       }
     } catch {
       // Si no se puede parsear, usar el mensaje original
     }
 
-    return NextResponse.json({ error: errorMessage }, { status: statusCode });
+    return NextResponse.json(
+      {
+        error: errorMessage,
+        cached: false
+      },
+      { status: statusCode }
+    );
   }
 }
