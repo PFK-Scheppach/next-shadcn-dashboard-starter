@@ -1,0 +1,417 @@
+Manual Exhaustivo de la API de Mensajería de Mercado Libre (Actualizado a Mayo 2025)I. Introducción a la API de Mensajería de Mercado LibreLa API de Mensajería de Mercado Libre es una herramienta fundamental dentro del ecosistema de la plataforma, diseñada para facilitar la comunicación privada y eficiente entre vendedores y compradores una vez que se ha concretado una venta. Su correcta implementación y uso son cruciales para optimizar la experiencia postventa, resolver incidencias de manera efectiva y construir una reputación sólida para el vendedor.A. Propósito y Significado de la Mensajería PostventaLa mensajería postventa es el canal principal que permite a los vendedores iniciar una comunicación directa y privada con los compradores después de que la venta se ha realizado.1 Este mecanismo no solo sirve para coordinar detalles de la entrega o resolver dudas sobre el producto recibido, sino que también es un espacio para ofrecer soporte adicional, gestionar devoluciones o cambios, y, en general, asegurar la satisfacción del cliente. Una comunicación postventa efectiva puede transformar una simple transacción en una relación de confianza a largo plazo, fomentando la lealtad del comprador y generando valoraciones positivas que impulsan la reputación del vendedor en la plataforma.El diseño de esta API se enfoca estrictamente en el contexto "postventa" 1, lo que implica que su uso está intrínsecamente ligado a una orden o paquete específico. Cualquier intento de utilizarla para consultas previas a la venta, atención al cliente general no vinculada a una orden, o comunicaciones masivas de marketing, no solo sería ineficaz sino que podría contravenir las políticas de uso de Mercado Libre. Esta especialización asegura que las interacciones sean relevantes y contextualizadas, mejorando la experiencia para ambas partes.B. Capacidades Clave y Beneficios para DesarrolladoresPara los desarrolladores, la API de Mensajería ofrece un conjunto robusto de funcionalidades diseñadas para integrarse con sistemas externos y automatizar flujos de comunicación. Las capacidades principales incluyen:
+Envío y recepción de mensajes de texto: Permite la comunicación escrita estándar.
+Gestión de archivos adjuntos: Facilita el intercambio de documentos importantes como facturas, manuales, o imágenes del producto/problema.2
+Administración de hilos de mensajes: Organiza las conversaciones por paquete u orden.
+Recepción de notificaciones en tiempo real: Permite a las aplicaciones reaccionar instantáneamente a nuevos mensajes o cambios en las conversaciones.3
+La integración de esta API aporta beneficios significativos, como la automatización de respuestas a preguntas frecuentes postventa, la posibilidad de conectar la mensajería de Mercado Libre con sistemas CRM o plataformas de soporte existentes, y una notable reducción de la carga operativa manual para los vendedores.1 La API está diseñada para fomentar una comunicación estructurada; por ejemplo, los vendedores inician el contacto eligiendo una razón específica, lo que ayuda a evitar comunicaciones automáticas innecesarias y a mejorar la calidad de las interacciones.1 Esta aproximación estructurada sugiere que la API podría tener categorías o motivos predefinidos para iniciar el contacto, un aspecto que los desarrolladores deben considerar al diseñar sus integraciones.C. Navegando Versiones de API y Actualizaciones de Mayo 2025Mercado Libre actualiza continuamente sus APIs para introducir nuevas funcionalidades, mejorar la seguridad y optimizar el rendimiento. Aunque la información específica sobre un sistema de versionado explícito para la API de Mensajería no se detalla en los recursos disponibles, es una práctica común que las plataformas de API mantengan la compatibilidad con versiones anteriores durante un tiempo o introduzcan cambios a través de nuevos endpoints o parámetros. Se recomienda a los desarrolladores consultar siempre los canales oficiales de Mercado Libre para la información más reciente sobre versiones.Con respecto a las actualizaciones de mayo de 2025, la documentación analizada revela cambios significativos a nivel de plataforma que impactan indirectamente a la API de Mensajería, así como otras actualizaciones recientes de alta relevancia para los desarrolladores:
+Obligatoriedad de HTTPS: A partir del 15 de mayo de 2025, todas las solicitudes a las APIs de Mercado Libre, incluida la de Mensajería, deben realizarse exclusivamente a través del protocolo HTTPS. Las solicitudes con URLs HTTP serán bloqueadas por completo.5 Esto refuerza la seguridad de todas las comunicaciones.
+Actualizaciones en la API de Mercado Pago (Mayo 2025): Se implementarán cambios en el endpoint de búsqueda de preferencias y se concluirá la migración para acceder a preferencias antiguas mediante su ID el 19 de mayo de 2025.5 Si bien estos cambios son específicos de Mercado Pago, demuestran la actividad de desarrollo y actualización en la plataforma durante este período.
+IDs de Usuario en Formato Int64: Desde el 13 de diciembre de 2024, los nuevos usuarios de Mercado Libre tienen identificadores que exceden el límite de un entero de 32 bits (Int32) y utilizan el formato Int64.6 Este es un cambio crítico que afecta directamente a la API de Mensajería, ya que los user_id son fundamentales en las estructuras de los mensajes.
+Otras Actualizaciones Recientes (2024): Se han introducido nuevas funcionalidades como un endpoint para costos de envío y SLA (/shipments/$SHIPMENT_ID/sla) y la suscripción al tópico "VIS Leads" para notificaciones de interesados en publicaciones de inmuebles y vehículos.6
+Es importante destacar que, si bien la consulta del usuario se centra en actualizaciones de la API de Mensajería para mayo de 2025, los materiales disponibles no detallan nuevas funcionalidades específicas para la API de Mensajería en esa fecha exacta, más allá de la imposición de HTTPS. Sin embargo, los cambios recientes como los IDs Int64 y la obligatoriedad de HTTPS son de cumplimiento imperativo para cualquier integración que opere en 2025. Este manual cubrirá el estado conocido de la API y guiará a los usuarios sobre cómo mantenerse informados a través de los canales oficiales.II. Autenticación y Autorización: Acceso Seguro a la APIPara interactuar con la API de Mensajería de Mercado Libre, es imprescindible que la aplicación esté debidamente autenticada y autorizada. Esto se logra mediante el protocolo OAuth 2.0, que garantiza que solo las aplicaciones con los permisos adecuados puedan acceder a los datos privados de los usuarios.A. Prerrequisitos: Creación de su Aplicación en Mercado Libre 7Antes de iniciar el flujo de autenticación, es necesario registrar una aplicación en el portal de Desarrolladores de Mercado Libre. Este proceso otorga las credenciales (client_id y client_secret) indispensables para la autenticación.Pasos para la creación de la aplicación:
+Acceder al Administrador de Aplicaciones de Mercado Libre e iniciar sesión. La aplicación funciona con cuentas de Global Selling, por lo que se requiere un usuario registrado en dicha plataforma.7
+Crear una nueva aplicación. Se recomienda crear una única aplicación o unificar las operaciones de API en una sola para todos los vendedores, ya que este cambio será obligatorio próximamente.7
+Completar la información básica de la aplicación:
+
+Nombre: Nombre de la aplicación (máximo 50 caracteres, único para el sitio).
+Nombre corto: Nombre que Mercado Libre usará para generar la URL de la aplicación (máximo 50 caracteres, letras, números y guion bajo).
+Descripción: Breve descripción de la funcionalidad de la aplicación (máximo 150 caracteres).
+Logo: Formato PNG, 400x400 píxeles, menos de 100kb. Se sugiere un logo sobre fondo blanco.
+Redirect URI: URL a la que el usuario será redirigido después de autenticarse. Es mandatorio que esta URL utilice el protocolo HTTPS para asegurar que el mensaje se envíe encriptado y solo a personas con permiso de lectura.7 Si se está utilizando HTTP, se debe actualizar a HTTPS. La obligatoriedad de HTTPS para las Redirect URI es un precursor de la política más amplia de bloqueo de HTTP para todas las llamadas API a partir de mayo de 2025.5
+
+
+Configurar permisos (Scopes): Los scopes definen qué acciones puede realizar la aplicación en nombre del usuario.
+
+read: Permite usar métodos HTTP GET de la API. Una aplicación solo con este scope permite a un usuario anónimo o autenticado obtener información personalizada de Mercado Libre (e.g., buscar artículos, ver descripciones, o, si está autenticado, ver información personal). Es suficiente si no se realizan modificaciones en los datos de Mercado Libre.7
+write: Permite modificar datos, listar nuevos artículos (vender), registrar órdenes (comprar), etc. Este scope es necesario para que la aplicación actúe en nombre del usuario para realizar cambios. La aplicación podrá modificar datos mientras el access_token sea válido.7
+offline_access: Permite realizar solicitudes del lado del servidor y obtener refresh_tokens. Esencial para aplicaciones que necesitan actuar en nombre del usuario incluso cuando este no está en línea (e.g., procesos batch, actualizaciones automáticas). Con este scope, la aplicación obtiene tanto un access_token como un refresh_token.7 Dada la vida útil limitada de los access_token (6 horas según 8), el scope offline_access es fundamental para la mayoría de las integraciones de backend que requieren acceso continuo.
+
+
+Configuración de Notificaciones:
+
+Callback URL Notifications: URL pública del dominio donde se desean recibir las notificaciones sobre los diferentes tópicos (e.g., orders, items, messages).
+Topics: Lista de tópicos a los que se desea suscribir para recibir notificaciones sobre cambios en las APIs. Para la mensajería, el tópico relevante es "marketplace messages" o "messages".3
+
+
+Aceptar los términos y condiciones.
+Una vez completado el registro, la aplicación recibirá un client_id (identificador de la aplicación) y un client_secret (clave secreta).7 Estas credenciales son confidenciales y deben almacenarse de forma segura.B. El Flujo de Autorización OAuth 2.0 (Authorization Code Grant) 8Mercado Libre utiliza el flujo "Authorization Code Grant Type" de OAuth 2.0, adecuado para aplicaciones que ejecutan código del lado del servidor.8 Este flujo consta de varios pasos para obtener un access_token que permitirá realizar llamadas a la API.Paso 1: Redirigir al Usuario para AutorizaciónLa aplicación debe redirigir al usuario al sitio de autorización de Mercado Libre. Mercado Libre se encarga de la autenticación del usuario.
+URL de Autorización:
+https://global-selling.mercadolibre.com/authorization?response_type=code&client_id=$APP_ID&redirect_uri=$YOUR_URL
+8
+Parámetros:
+
+response_type=code: Indica que se solicita un código de autorización.
+client_id: El APP_ID de la aplicación registrada.
+redirect_uri: La URL de redirección configurada para la aplicación. Debe coincidir exactamente con la registrada para evitar errores.8
+
+
+El usuario será presentado con una pantalla para autorizar a la aplicación a acceder a sus datos de Mercado Libre según los scopes solicitados. Si el usuario concede el permiso, Mercado Libre lo redirigirá de nuevo a la redirect_uri especificada, añadiendo un parámetro code a la URL:http://YOUR_REDIRECT_URI?code=$TG-CODE 8Este $TG-CODE es el código de autorización temporal.Paso 2: Intercambiar el Código de Autorización por un Access TokenCon el código de autorización obtenido, la aplicación debe realizar una solicitud POST al endpoint de token de Mercado Libre para intercambiarlo por un access_token. Esta solicitud se hace desde el servidor de la aplicación, asegurando que el client_secret no se exponga al cliente (navegador).
+Endpoint: POST https://api.mercadolibre.com/oauth/token 8
+Cabeceras (Headers):
+
+accept: application/json
+content-type: application/x-www-form-urlencoded
+8
+
+
+Cuerpo de la Solicitud (Parámetros x-www-form-urlencoded):
+
+grant_type=authorization_code: Indica la operación deseada.
+client_id: El APP_ID de la aplicación.
+client_secret: El SECRET_KEY de la aplicación.
+code: El $TG-CODE obtenido en el paso anterior.
+redirect_uri: La misma redirect_uri utilizada en el Paso 1.
+8
+
+
+Ejemplo de solicitud curl:Bashcurl -X POST \
+  -H 'accept: application/json' \
+  -H 'content-type: application/x-www-form-urlencoded' \
+  'https://api.mercadolibre.com/oauth/token' \
+  -d 'grant_type=authorization_code' \
+  -d 'client_id=$APP_ID' \
+  -d 'client_secret=$SECRET_KEY' \
+  -d 'code=$TG_CODE' \
+  -d 'redirect_uri=$YOUR_REDIRECT_URI'
+9 (adaptado con parámetros de 8)Una respuesta exitosa devolverá un JSON con la siguiente estructura 8:JSON{
+  "access_token": "APP_USR-123456-...",
+  "token_type": "bearer",
+  "expires_in": 21600, // Segundos, e.g., 21600 = 6 horas
+  "scope": "offline_access read write",
+  "user_id": 123456789,
+  "refresh_token": "TG-abcdef-..."
+}
+El access_token tiene una validez de 6 horas desde su generación.8 La corta vida útil de este token hace que el mecanismo de refresh_token sea una necesidad para la mayoría de las aplicaciones que requieren acceso persistente. Es crucial que el usuario que inicia sesión para autorizar la aplicación sea un administrador para que el access_token obtenido tenga los permisos suficientes.8C. Gestión del Ciclo de Vida del Token: Uso de Refresh Tokens 8Dado que los access_token expiran después de 6 horas 8, las aplicaciones que necesitan acceso continuo (especialmente aquellas con el scope offline_access) deben utilizar refresh_tokens para obtener nuevos access_token sin requerir que el usuario se autentique nuevamente.
+
+Obtención y Almacenamiento Seguro: El refresh_token se obtiene junto con el access_token inicial si se solicitó el scope offline_access. Los refresh_tokens son credenciales muy sensibles y deben almacenarse de forma segura en el servidor de la aplicación.
+
+
+Vida Útil del Refresh Token: Un refresh_token es válido por 6 meses.8
+
+
+Refrescar un Access Token Expirado:Para obtener un nuevo access_token usando un refresh_token, se realiza una solicitud POST al mismo endpoint de token:
+
+Endpoint: POST https://api.mercadolibre.com/oauth/token
+Cuerpo de la Solicitud (Parámetros x-www-form-urlencoded):
+
+grant_type=refresh_token: Indica la operación de refresco.
+client_id: El APP_ID de la aplicación.
+client_secret: El SECRET_KEY de la aplicación.
+refresh_token: El refresh_token almacenado previamente.
+8
+
+
+
+Ejemplo de solicitud curl:
+Bashcurl -X POST \
+  'https://api.mercadolibre.com/oauth/token' \
+  -d 'grant_type=refresh_token' \
+  -d 'client_id=$APP_ID' \
+  -d 'client_secret=$SECRET_KEY' \
+  -d 'refresh_token=$REFRESH_TOKEN'
+
+8 (adaptado con parámetros de 8)
+La respuesta será un nuevo JSON similar al de la obtención inicial, conteniendo un nuevo access_token y, crucialmente, un nuevo refresh_token.8 Es fundamental destacar que solo el último refresh_token generado es válido; el refresh_token es de un solo uso en el sentido de que cada vez que se utiliza para obtener un nuevo access_token, se emite un nuevo refresh_token que reemplaza al anterior.8 Las aplicaciones deben estar diseñadas para actualizar siempre el refresh_token almacenado con el nuevo recibido tras cada operación de refresco exitosa. No hacerlo resultará en fallos de autenticación una vez que el access_token actual expire y se intente usar un refresh_token obsoleto.
+
+D. Consideraciones del Flujo PKCE (Proof Key for Code Exchange) 8PKCE (Proof Key for Code Exchange) es una extensión del flujo de Authorization Code que mejora la seguridad, especialmente para clientes públicos (como aplicaciones móviles o de escritorio) que no pueden almacenar de forma segura un client_secret. Aunque la documentación de Mercado Libre se centra en el flujo del lado del servidor, se mencionan parámetros opcionales para PKCE, lo que sugiere una creciente relevancia o soporte para este mecanismo.
+Parámetros involucrados 8:
+
+code_challenge: Un código de verificación generado a partir de un code_verifier y encriptado con code_challenge_method. Se envía en la solicitud de autorización inicial (Paso 1).
+code_challenge_method: El método usado para generar el code_challenge. Valores soportados:
+
+S256: Especifica que el code_challenge usa el algoritmo de encriptación SHA-256.
+plain: El mismo code_verifier se envía como code_challenge (no recomendado por seguridad).
+
+
+El code_verifier original se envía luego en la solicitud de intercambio de token (Paso 2) para que el servidor de autorización pueda validarlo contra el code_challenge.
+
+
+La documentación inicial 7 indicaba "PKCE: At the moment, don't check it", mientras que una actualización posterior 8 (con fecha de última actualización 04/07/2024) detalla estos como parámetros opcionales. Esta evolución sugiere que Mercado Libre está avanzando hacia un soporte más amplio de PKCE. Los desarrolladores que construyan nuevas integraciones, incluso del lado del servidor, podrían considerar implementar PKCE para una mayor seguridad y preparación para el futuro, especialmente si hay alguna posibilidad de que el tipo de cliente evolucione.E. Mejores Prácticas de Autenticación
+Almacenamiento en Caché de Tokens (Token Caching): Almacenar y reutilizar el access_token hasta su expiración para evitar llamadas de autenticación innecesarias y redundantes.10
+Almacenamiento Seguro de Credenciales: Proteger diligentemente el client_secret y el refresh_token. Se recomienda el uso de variables de entorno o gestores de secretos para esta información sensible, en lugar de incrustarlos directamente en el código.10
+Manejo Elegante de Expiración y Revocación de Tokens: Implementar lógica para refrescar proactivamente los access_token antes de que expiren. Es crucial manejar adecuadamente los errores relacionados con tokens inválidos o revocados, reintentando el flujo de autorización completo si es necesario.
+Causas de Invalidación de Tokens: Un access_token o refresh_token puede invalidarse por diversas razones antes de su tiempo de expiración nominal 8:
+
+Cambio de contraseña por parte del usuario.
+Refresco del App Secret de la aplicación.
+Revocación de permisos a la aplicación por parte del usuario.
+Inactividad de la aplicación (ninguna solicitud a https://api.mercadolibre.com/) durante 4 meses.
+Flujos internos de Mercado Libre (e.g., por detección de fraude, desvinculación de dispositivos).
+Esta diversidad de causas de invalidación implica que una aplicación no puede depender únicamente del campo expires_in. Debe estar preparada para que un token se invalide inesperadamente y contar con un manejo de errores robusto que detecte fallos de autenticación (e.g., códigos de estado 401, 403) y active el proceso de refresco de token o una reautenticación completa.
+
+
+A continuación, se presenta una tabla con errores comunes de OAuth 2.0 que se detallará en la Sección VI.C, pero es relevante mencionarla aquí ya que la autenticación es el primer paso crítico.III. Operaciones Principales de Mensajería: Envío y Recepción de ComunicacionesUna vez que la aplicación está autenticada, puede comenzar a interactuar con los endpoints de la API de Mensajería para enviar y recibir mensajes, así como para gestionar archivos adjuntos.A. Anatomía de un Mensaje: Parámetros y Estructura Clave 2Comprender la estructura de un objeto de mensaje es fundamental para interactuar con la API.Campos Principales al Enviar un Mensaje (contenidos en el cuerpo de la solicitud POST):
+from: Objeto que contiene el user_id del remitente (generalmente el vendedor autenticado).
+to: Objeto que contiene el user_id del destinatario (el comprador).
+text: El contenido textual del mensaje.
+site_id: Un parámetro crucial que especifica el sitio de Mercado Libre al que pertenece la orden/mensaje (e.g., "MLM" para México, "MLB" para Brasil, "MCO" para Colombia, "MLC" para Chile).2 Este parámetro es a menudo requerido en las URL de los endpoints o en el cuerpo de la solicitud, dependiendo de la operación.
+attachments: Un array de identificadores de archivos adjuntos que se han subido previamente (opcional).
+Campos Adicionales en la Respuesta al Recuperar Mensajes:Al recuperar mensajes, la API devuelve una estructura JSON más rica que incluye metadatos adicionales 2:
+id: Identificador único del mensaje.
+site_id: Sitio de Mercado Libre.
+client_id: ID del cliente que realizó la solicitud.
+from: Objeto con user_id y name del remitente.
+to: Objeto con user_id y name del destinatario.
+status: Estado del mensaje (e.g., "available", "moderated", "rejected", "pending_translation").11 Indica si el mensaje es visible, está en revisión o ha sido rechazado.
+text: Contenido del mensaje.
+message_date: Objeto que contiene varias marcas de tiempo en formato UTC 2:
+
+created: Fecha de creación del mensaje.
+received: Fecha en que el sistema recibió el mensaje.
+available: Fecha en que el mensaje pasó la moderación y está disponible.
+notified: Fecha en que el mensaje fue notificado a la contraparte (si aplica).
+read: Fecha en que el mensaje fue leído por la contraparte (puede ser null).
+
+
+message_moderation: Objeto con detalles sobre el proceso de moderación 2:
+
+status: Resultado de la moderación (e.g., "clean", "rejected", "pending").
+reason: Motivo de la moderación, si aplica.
+source: Origen de la moderación (e.g., "online").
+moderation_date: Fecha de la moderación.
+
+
+message_attachments: Array de objetos, cada uno describiendo un archivo adjunto (con filename, original_filename, type, size, etc.).2
+message_resources: Array que identifica las entidades relacionadas con el mensaje, como el paquete (packs) y el vendedor (sellers).2
+conversation_first_message: Booleano que indica si este es el primer mensaje de la conversación.2
+text_translated: Texto del mensaje traducido, si está disponible o fue provisto.2
+La presencia de campos como message_moderation, status con valores como "pending_translation" o "moderated", y text_translated revela un sistema backend sofisticado. Los desarrolladores deben ser conscientes de que un mensaje enviado puede no estar disponible instantáneamente para el destinatario, ya que podría pasar por procesos de revisión, traducción o moderación. El campo text_translated es particularmente útil para vendedores que operan en múltiples mercados con diferentes idiomas.B. Directrices de ContenidoPara asegurar una comunicación efectiva y evitar errores, es importante adherirse a las siguientes directrices de contenido:
+Límites de Caracteres: Los mensajes tienen un límite de 350 caracteres.11 Las aplicaciones deben validar la longitud del mensaje antes de enviarlo.
+Juegos de Caracteres Soportados: Se permite el uso de caracteres incluidos en la norma ISO-8859-1 (Latin1) y una lista específica de emoticonos proporcionada por Mercado Libre.11 El uso de caracteres no soportados (e.g., algunos caracteres UTF-8 fuera de Latin1) resultará en un error.11
+Incrustación de Enlaces: Es posible insertar enlaces clicables utilizando la etiqueta HTML <a> con el atributo href. Por ejemplo: "<a href="su_url">Su link de seguimiento</a>".2 Las aplicaciones deben asegurar que las URLs sean válidas y estén correctamente formateadas para evitar HTML malformado o enlaces rotos.
+Soporte Multilingüe: Si se envían mensajes pre-traducidos, se puede utilizar el campo text_translated en la estructura del mensaje.2
+C. Recuperación de MensajesLa API ofrece métodos para obtener listas de mensajes o mensajes individuales.1. Obtener Mensajes por Paquete/ID de Orden 2Las conversaciones se agrupan principalmente por pack_id. Un pack_id puede representar un envío que agrupa múltiples ítems de una o varias órdenes.
+Endpoint: GET /marketplace/messages/packs/$PACK_ID
+
+Para obtener el pack_id, se debe consultar la respuesta del recurso /orders/$ORDER_ID. En caso de que el pack_id sea null en la orden, se debe tomar por defecto el order_id como identificador del paquete, manteniendo el recurso /packs en la URL del endpoint de mensajería.11 Este es un mecanismo de fallback importante que las integraciones deben manejar.
+
+
+Autenticación: Cabecera Authorization: Bearer $ACCESS_TOKEN.
+Parámetros de Consulta (Query Parameters):
+
+limit: Número máximo de mensajes a devolver por página (para paginación).
+offset: Número de mensajes a omitir desde el inicio (para paginación).
+2
+mark_as_read=false: Parámetro opcional. Si se incluye, la consulta de mensajes no los marcará como leídos en el sistema de Mercado Libre. Esto es crucial para aplicaciones que solo muestran información o que no quieren interferir con el estado de lectura que el vendedor ve en la plataforma oficial.11 Por defecto, algunas consultas podrían marcar los mensajes como leídos.
+
+
+Respuesta: Un objeto JSON que contiene información de paginación (paging), el estado de la conversación (conversation_status), y un array de objetos de mensaje (messages).2 Los mensajes moderados por la contraparte no serán visibles, pero los mensajes propios sí.11
+2. Obtener un Mensaje Específico por ID 2Si se conoce el ID de un mensaje específico (quizás obtenido a través de una notificación o una consulta previa), se puede recuperar directamente.
+Endpoint: GET /marketplace/messages/$MESSAGE_ID
+Autenticación: Cabecera Authorization: Bearer $ACCESS_TOKEN.
+Respuesta: Un objeto JSON que contiene un array con el único mensaje solicitado, si se encuentra.2 Este endpoint es útil para actualizar los detalles de un mensaje conocido o verificar su estado actual (moderación, lectura).
+D. Envío de Mensajes a Compradores 2Para enviar un nuevo mensaje a un comprador asociado a un paquete u orden:
+Endpoint: POST /marketplace/messages/packs/$PACK_ID (o $ORDER_ID si pack_id es nulo)
+
+Es importante notar una variación en la documentación: las guías de Global Selling 2 utilizan consistentemente /marketplace/messages/packs/$ORDER_ID (o $PACK_ID). Documentos regionales en español 11 mencionan /messages/packs/$PACK_ID/sellers/$USER_ID. Dada la mayor consistencia y detalle de la documentación de Global Selling, y su alineación con otros endpoints del namespace /marketplace/, se priorizará el formato /marketplace/messages/packs/$PACK_ID. Se recomienda a los desarrolladores verificar la documentación más actual para su región específica.
+
+
+Autenticación: Cabecera Authorization: Bearer $ACCESS_TOKEN.
+Cabeceras Adicionales: Content-Type: application/json.2
+Cuerpo de la Solicitud (JSON):
+JSON{
+  "text": "Contenido del mensaje aquí.",
+  "text_translated": "Opcional: contenido traducido aquí.", // [2]
+  "attachments": [ "attachment_id_1", "attachment_id_2" ] // Opcional, array de IDs de adjuntos previamente subidos [2]
+}
+
+Si no se necesitan adjuntos, se debe eliminar la sección "attachments" del JSON.2 La API permite enviar mensajes pre-traducidos usando el campo text_translated, y asociar archivos que han sido cargados en un paso previo.
+E. Manejo de Archivos Adjuntos: Mejorando la Comunicación 2La API permite adjuntar archivos a los mensajes, como imágenes, manuales, facturas, etc. Este es un proceso de dos pasos: primero se sube el archivo y luego se asocia su ID al enviar el mensaje.1. Subir Archivos Adjuntos
+Endpoint: POST /marketplace/messages/attachments?site_id=$SITE_ID
+
+El parámetro site_id en la URL es mandatorio desde el 12 de agosto (año no especificado, pero se asume reciente a la documentación) para indicar el sitio de la cuenta donde se añade el adjunto.2 Documentos en español 11 también muestran el uso de tag=post_sale junto con site_id en sus ejemplos. La obligatoriedad del site_id subraya la naturaleza regional de las operaciones de Mercado Libre.
+
+
+Autenticación: Cabecera Authorization: Bearer $ACCESS_TOKEN.
+Método y Contenido: POST con Content-Type: multipart/form-data. El archivo se envía como parte de los datos del formulario, típicamente con una clave como file.2
+Restricciones:
+
+Tamaño del Archivo: Máximo 25 MB.2
+Tipos de Archivo Permitidos (extensiones): JPG, PNG, PDF, TXT.2
+Tipos MIME Permitidos: text/plain, image/png, image/jpeg, image/heif, image/heic, application/pdf, application/msword, application/vnd.ms-excel, text/xml,application/xml, application/octet-stream.2 Subir un archivo con un tipo MIME no listado resultará en un error HTTP 400.2 Esta lista exhaustiva es una medida de seguridad para prevenir la carga de archivos potencialmente maliciosos.
+
+
+Respuesta: Un objeto JSON que contiene el id del archivo subido exitosamente. Este ID es el que se utilizará para asociar el adjunto a un mensaje.
+Ejemplo de respuesta 2:
+JSON{
+  "id": "210438685_59f0f034-db1b-4ea6-8c5e-1d34e2092482.jpg"
+}
+
+
+2. Asociar Adjuntos Subidos a MensajesComo se describió en la sección III.D, al enviar un mensaje (POST /marketplace/messages/packs/$PACK_ID), se incluye un array attachments en el cuerpo JSON con los IDs de los archivos previamente subidos.3. Recuperar Archivos AdjuntosPara descargar un archivo adjunto específico:
+Endpoint: GET /marketplace/messages/attachments/$ATTACHMENT_ID?tag=post_sale&site_id=$SITE_ID.2
+Autenticación: Cabecera Authorization: Bearer $ACCESS_TOKEN.
+Respuesta: Si la solicitud es exitosa, la respuesta será el archivo mismo. Si ocurren problemas (e.g., el archivo no es accesible, el token es inválido o falta), se devolverá un JSON de error.2
+Tabla: Resumen de Endpoints de la API de MensajeríaCaracterísticaMétodo HTTPEndpoint PathBreve DescripciónObtener Mensajes por Paquete/OrdenGET/marketplace/messages/packs/{pack_id_o_order_id}Recupera una lista de mensajes para un paquete u orden específico. Soporta paginación y mark_as_read=false.Obtener Mensaje por IDGET/marketplace/messages/{message_id}Recupera un mensaje específico por su ID.Enviar MensajePOST/marketplace/messages/packs/{pack_id_o_order_id}Envía un nuevo mensaje (texto y/o adjuntos) a un comprador.Subir Archivo AdjuntoPOST/marketplace/messages/attachments?site_id={site_id}Sube un archivo para adjuntarlo posteriormente a un mensaje. Devuelve un ID de adjunto.Recuperar Archivo AdjuntoGET/marketplace/messages/attachments/{attachment_id}?tag=post_sale&site_id={site_id}Descarga un archivo adjunto específico.Listar Conversaciones No LeídasGET/marketplace/messages/unread?role={role}&tag=post_saleObtiene una lista de IDs de órdenes con mensajes no leídos para un rol (comprador/vendedor).Marcar Mensajes como Leídos (Pack)GET/marketplace/messages/packs/{pack_id}/sellers/{seller_id}Marca todos los mensajes de un paquete para un vendedor como leídos. (Consultar documentación para comportamiento exacto).IV. Gestión de Hilos de Mensajes y Notificaciones en Tiempo RealUna gestión eficaz de las conversaciones y la capacidad de reaccionar a nuevos mensajes de forma oportuna son esenciales para una buena experiencia postventa. La API de Mercado Libre proporciona herramientas para entender el contexto de las conversaciones y para recibir actualizaciones mediante notificaciones.A. Entendiendo el Contexto de la Conversación: Paquetes e HilosComo se mencionó anteriormente, los mensajes en la API de Mercado Libre se organizan principalmente en torno a un pack_id (o order_id como fallback).11 Este pack_id agrupa las comunicaciones relativas a un envío o conjunto de ítems.Dentro de la respuesta JSON al recuperar mensajes (e.g., GET /marketplace/messages/packs/$PACK_ID), el objeto conversation_status proporciona información contextual valiosa sobre el estado general del hilo de conversación asociado al paquete u orden.2 Este objeto puede incluir campos como:
+status: Estado actual de la conversación (e.g., "active", "closed", "blocked").
+status_date: Fecha de la última actualización del estado de la conversación.
+claim_ids: Array de IDs de reclamos asociados a esta orden/paquete. La presencia de IDs aquí indica que existe una disputa activa, y los mensajes pueden estar relacionados con su resolución.
+shipping_id: ID del envío asociado.
+Además, el flag booleano conversation_first_message presente en cada objeto de mensaje 2 puede ayudar a identificar el inicio de un hilo o una nueva interacción dentro del paquete. La información contextual de conversation_status, especialmente la vinculación con claim_ids y shipping_id, es vital, ya que sugiere una integración estrecha entre el sistema de mensajería y otras funcionalidades críticas de la plataforma. Una aplicación o un agente que responda a mensajes debe tener en cuenta este contexto para ofrecer respuestas más precisas y eficientes.B. Listado de Conversaciones No Leídas (Mensajes Pendientes) 12Para ayudar a los vendedores a gestionar los mensajes que requieren atención, la API ofrece un endpoint para listar las órdenes o paquetes que tienen mensajes no leídos. Es importante destacar que este endpoint está diseñado específicamente para mensajes no leídos y no para listar todas las conversaciones históricas.
+Endpoint: GET /marketplace/messages/unread 12
+Autenticación: Cabecera Authorization: Bearer $ACCESS_TOKEN.
+Parámetros de Consulta (Query Parameters):
+
+role=$ROLE: Especifica la perspectiva para la cual se buscan mensajes no leídos. Los valores posibles son "buyer" (comprador) o "seller" (vendedor).12
+tag=post_sale: Filtra los mensajes para el contexto de postventa.12
+
+
+Respuesta: Un objeto JSON que contiene:
+
+user_id: ID del usuario que realizó la solicitud.
+count: Número total de conversaciones (órdenes/paquetes) con mensajes pendientes de lectura.
+order_id: Un array de identificadores de órdenes (o paquetes) que tienen mensajes no leídos.12
+
+
+Limitación: Este recurso devuelve hasta un máximo de 1000 conversaciones (órdenes/paquetes con mensajes no leídos) por solicitud. Si hay más de 1000, para obtener los siguientes, la aplicación debe primero procesar y marcar algunos de los mensajes recuperados como leídos, y luego realizar la misma solicitud nuevamente.12
+Este endpoint funciona como una herramienta de gestión para identificar trabajo pendiente. El flujo de trabajo implícito es:
+Llamar a /marketplace/messages/unread para obtener la lista de order_id con mensajes nuevos.
+Para cada order_id de la lista, llamar a GET /marketplace/messages/packs/$ORDER_ID (preferiblemente con mark_as_read=false) para obtener el contenido de los mensajes.
+Una vez que los mensajes han sido procesados (leídos, respondidos), marcarlos explícitamente como leídos (ver IV.C).
+Si el count inicial era de 1000, repetir la llamada a /marketplace/messages/unread para ver si hay más.
+Este enfoque difiere de APIs que podrían ofrecer paginación sobre todas las conversaciones independientemente de su estado de lectura.
+C. Control del Estado de Lectura 11Es crucial poder controlar si la recuperación de mensajes altera su estado de "leído" en el sistema de Mercado Libre.
+Marcar Mensajes como Leídos:
+La documentación sugiere que una consulta GET al endpoint /marketplace/messages/packs/$PACK_ID/sellers/$SELLER_ID marca los mensajes de ese paquete para ese vendedor como leídos.13 Documentos en español 11 indican un comportamiento similar al consultar /messages/packs/$PACK_ID/sellers/$SELLER_ID si no se especifica mark_as_read=false. Es fundamental que los desarrolladores verifiquen el comportamiento exacto de este endpoint, ya que marcar mensajes como leídos tiene implicaciones en cómo el vendedor los visualiza en la plataforma oficial de Mercado Libre.
+Prevenir el Marcado Automático como Leído:
+Al recuperar mensajes de un paquete u orden (usando GET /marketplace/messages/packs/$PACK_ID), se debe incluir el parámetro de consulta mark_as_read=false.11 Esto asegura que la API devuelva el contenido de los mensajes sin cambiar su estado de lectura. Esta práctica es esencial para aplicaciones que actúan como visores pasivos de mensajes o que no quieren interferir con los indicadores de "no leído" que el vendedor utiliza en la interfaz de Mercado Libre. Si una aplicación de terceros marca automáticamente los mensajes como leídos, el vendedor podría pasar por alto comunicaciones importantes si confía en el indicador de no leído de la plataforma principal.
+D. Suscripción a Notificaciones de Mensajes para Actualizaciones en Tiempo Real 3Para evitar el sondeo constante (polling) de la API en busca de nuevos mensajes, lo cual es ineficiente y puede llevar a alcanzar los límites de tasa, Mercado Libre recomienda encarecidamente el uso de su sistema de notificaciones.3 Este sistema informa a la aplicación en tiempo real sobre eventos relevantes, como la llegada de nuevos mensajes.Configuración en la Aplicación de Mercado Libre 3:
+Notifications Callback URL: Durante la configuración de la aplicación en el portal de desarrolladores, se debe especificar una URL pública (obligatoriamente HTTPS) del dominio de la aplicación. Mercado Libre enviará solicitudes POST a esta URL cuando ocurran eventos para los tópicos suscritos.
+Topics: Se debe seleccionar los tópicos de interés. Para la mensajería, los tópicos relevantes son:
+
+messages: Notifica sobre nuevos mensajes creados donde el user_id del suscriptor es el destinatario.3
+marketplace_messages: Similar al anterior, específico para el contexto del marketplace.4
+
+
+Flujo de Notificación:
+Cuando ocurre un evento (e.g., un comprador envía un mensaje nuevo), Mercado Libre envía una solicitud POST a la Callback URL configurada.
+La aplicación receptora debe responder inmediatamente con un código de estado HTTP 200 para confirmar la recepción de la notificación.3 Esta respuesta rápida es crucial.
+Si Mercado Libre no recibe una confirmación HTTP 200, considerará que la notificación no fue entregada y reintentará el envío. Los reintentos se realizan con un intervalo exponencial, durante un período de hasta 1 hora. Después de este tiempo, los mensajes que no fueron aceptados (confirmados con HTTP 200) serán excluidos del sistema de reintento.3 La alta disponibilidad de la Callback URL es, por lo tanto, esencial.
+Contenido de la Notificación (Payload):La solicitud POST de notificación contendrá un cuerpo JSON con información sobre el evento. Aunque los ejemplos detallados en 4 son para otros tópicos (como items u orders), la estructura general suele incluir:
+resource: Una cadena que identifica el recurso que ha cambiado. Para mensajes, probablemente apuntará al pack_id o message_id (e.g., /marketplace/messages/packs/123456789 o /messages/abcdef123456).
+user_id: El ID del usuario asociado al evento.
+topic: El tópico que generó la notificación (e.g., "messages", "marketplace_messages").
+application_id: El ID de la aplicación que recibe la notificación.
+attempts: Número de intentos de envío de esta notificación.
+sent: Marca de tiempo de cuándo se envió la notificación.
+received: Marca de tiempo de cuándo se recibió la notificación (registrada por Mercado Libre si hay confirmación).
+Acción al Recibir una Notificación:
+Confirmar la recepción con HTTP 200.
+Procesar el payload de la notificación de manera asíncrona (para no bloquear la respuesta HTTP 200).
+Extraer el identificador del resource (e.g., pack_id o message_id).
+Realizar una solicitud GET al endpoint correspondiente de la API de Mensajería (e.g., GET /marketplace/messages/packs/{pack_id} o GET /marketplace/messages/{message_id}) utilizando el ID extraído para obtener los detalles completos del nuevo mensaje o la conversación actualizada.
+Este flujo basado en eventos es mucho más eficiente y escalable que el sondeo continuo y permite a las aplicaciones reaccionar de manera casi instantánea a las nuevas comunicaciones.V. Actualizaciones y Consideraciones de la API: Mayo 2025La plataforma de Mercado Libre está en constante evolución. Para los desarrolladores que trabajan con la API de Mensajería, es crucial estar al tanto de los cambios recientes y futuros que puedan impactar sus integraciones, especialmente en torno a fechas clave como mayo de 2025.A. Análisis de Cambios en la API de Mercado Pago (Mayo 2025) y Posibles Implicaciones Indirectas 5Si bien no son cambios directos a la API de Mensajería, las actualizaciones en otras APIs de Mercado Libre, como la de Mercado Pago, programadas para mayo de 2025, reflejan la dinámica de la plataforma y pueden tener implicaciones transversales.
+
+Actualización del Endpoint de Búsqueda de Preferencias (Mercado Pago) 5:
+
+Detalle: A partir de mayo de 2025, las preferencias más antiguas de Mercado Pago deberán ser accedidas utilizando su ID a través del endpoint correspondiente. Este cambio se aplicará progresivamente y concluirá el 19 de mayo de 2025.
+Relevancia para la API de Mensajería: Directamente, es probable que no haya un impacto funcional. Sin embargo, este tipo de actualizaciones subraya la importancia de que los desarrolladores se mantengan al día con los comunicados oficiales, ya que los patrones de acceso a los datos pueden cambiar.
+
+
+
+Obligatoriedad de HTTPS para URLs (Plataforma General) 5:
+
+Detalle: A partir del 15 de mayo de 2025, Mercado Libre bloqueará completamente las solicitudes realizadas a sus APIs que utilicen URLs con protocolo HTTP. Todas las interacciones deberán realizarse a través de HTTPS.
+Relevancia para la API de Mensajería: Este cambio es directo y crítico. Cualquier llamada a los endpoints de la API de Mensajería deberá realizarse exclusivamente mediante HTTPS. Además, las Callback URL configuradas para recibir notificaciones también deben ser HTTPS (lo cual ya es un requisito para las Redirect URI de OAuth 2.0 desde antes 7). Esta es una actualización de seguridad fundamental para toda la plataforma. Cualquier integración que, por alguna razón heredada o descuido, aún utilice HTTP para alguna llamada o callback, dejará de funcionar a partir de esta fecha.
+
+
+B. Revisión de Otros Cambios Recientes en la Plataforma y su RelevanciaAdemás de las actualizaciones específicas de mayo de 2025, otros cambios recientes en la plataforma de Mercado Libre tienen un impacto significativo en cómo los desarrolladores deben interactuar con las APIs, incluida la de Mensajería.
+
+IDs de Usuario en Formato Int64 6:
+
+Detalle: Desde el 13 de diciembre de 2024, los nuevos usuarios creados en Mercado Libre reciben identificadores (user_id) que utilizan un formato de entero de 64 bits (Int64). Estos IDs pueden exceder el límite máximo de un entero de 32 bits (Int32).
+Relevancia para la API de Mensajería: Altamente relevante y potencialmente disruptivo si no se maneja adecuadamente. El user_id es un componente fundamental en la API de Mensajería: identifica al remitente (from.user_id) y al destinatario (to.user_id) en cada mensaje, y también se devuelve en las respuestas de autenticación. Las aplicaciones y sistemas de backend que interactúan con la API de Mensajería deben ser capaces de almacenar, procesar y transmitir correctamente estos IDs de 64 bits. Si un sistema está diseñado para manejar user_id como Int32, encontrará errores o truncamiento de datos al interactuar con mensajes de o para usuarios nuevos creados después de diciembre de 2024. Esto podría llevar a la incapacidad de procesar mensajes para un segmento creciente de usuarios o incluso a la corrupción de datos. Es imperativo que las bases de datos, modelos de datos en el código y cualquier serialización de datos estén preparados para Int64.
+
+
+
+Nuevo Endpoint de Costos de Envío y SLA 6:
+
+Detalle: Disponible desde el 23 de mayo de 2024, el endpoint /shipments/$SHIPMENT_ID/sla permite consultar la fecha máxima para despachar productos.
+Relevancia para la API de Mensajería: Indirecta. Aunque no afecta directamente el envío o recepción de mensajes, forma parte del ecosistema de gestión de órdenes y envíos. La información obtenida de este endpoint podría, por ejemplo, usarse para contextualizar mensajes automáticos sobre plazos de envío.
+
+
+
+Separación de Cargos por Venta y Costos por Ofrecimiento 6:
+
+Detalle: A partir de julio de 2024, estos costos se mostrarán por separado para mayor claridad.
+Relevancia para la API de Mensajería: Indirecta. Principalmente afecta la visualización de finanzas para el vendedor.
+
+
+
+Tópico "VIS Leads" para Notificaciones de Inmuebles y Vehículos 6:
+
+Detalle: Desde el 27 de mayo de 2024, las aplicaciones deben suscribirse a este tópico para recibir notificaciones de interesados en estas categorías específicas.
+Relevancia para la API de Mensajería: Ninguna para la mensajería postventa general. Es específico para la captación de prospectos en esos verticales.
+
+
+C. Guía para Mantenerse Actualizado con los Registros de Cambios Oficiales de Mercado LibreLas plataformas API son dinámicas, con actualizaciones, nuevas funcionalidades y, ocasionalmente, deprecaciones. Para asegurar la continuidad y el correcto funcionamiento de una integración, es vital que los desarrolladores consulten regularmente los canales de comunicación oficiales de Mercado Libre.
+Portal de Desarrolladores de Mercado Libre: Es la fuente principal de documentación, guías y referencias de API. Suelen existir secciones específicas por país o región (e.g.14).
+Changelogs (Registros de Cambios): Mercado Libre publica registros de cambios que detallan las actualizaciones de sus APIs. Un ejemplo es el changelog de Mercado Pago.5 Es importante buscar los changelogs relevantes para las APIs y regiones específicas con las que se trabaja.
+Comunidad de Desarrolladores y Foros: Pueden ser fuentes de información y discusión sobre cambios recientes.
+Se aconseja a los desarrolladores establecer una rutina para revisar estos recursos, especialmente antes de realizar cambios significativos en sus integraciones o al planificar nuevas funcionalidades. Dado que este manual se basa en la información disponible hasta una fecha determinada, la consulta proactiva de los canales oficiales es la mejor manera de estar al tanto de cualquier actualización que ocurra posteriormente o que no haya sido capturada en la investigación inicial.D. Declaración Explícita sobre Actualizaciones de Funcionalidades de la API de Mensajería en Mayo 2025Con base en la documentación y los recursos analizados para la elaboración de este manual, se declara que no se han identificado nuevas funcionalidades, modificaciones mayores o deprecaciones específicas para las operaciones centrales de la API de Mensajería de Mercado Libre programadas para mayo de 2025, más allá de la aplicación transversal y obligatoria del protocolo HTTPS para todas las comunicaciones API.5Este manual describe el estado y funcionamiento de la API de Mensajería considerando la información más reciente disponible, incluyendo cambios críticos como la transición a IDs de usuario Int64 6 y la mencionada obligatoriedad de HTTPS. Los desarrolladores deben operar bajo la premisa de que las funcionalidades de envío, recepción y gestión de mensajes descritas en este documento seguirán siendo válidas en mayo de 2025, siempre cumpliendo con los requisitos técnicos actualizados (HTTPS, Int64). No obstante, se reitera la recomendación de monitorear los anuncios oficiales de Mercado Libre para cualquier novedad de último momento.VI. Integración Robusta: Manejo de Errores y Solución de ProblemasUna integración robusta no solo implementa las funcionalidades deseadas, sino que también maneja de manera elegante los errores y cuenta con estrategias para la solución de problemas. La API de Mercado Libre, como cualquier API, puede devolver errores por diversas razones, desde datos incorrectos en la solicitud hasta problemas temporales en el servidor.A. Códigos de Estado HTTP Estándar en la API de Mercado LibreLa API de Mercado Libre utiliza códigos de estado HTTP estándar para indicar el resultado de una solicitud. Comprender su significado general es el primer paso para el diagnóstico de problemas.
+200 OK: La solicitud se completó con éxito. Para respuestas JSONP, el código HTTP siempre será 200 OK, y el estado real de la respuesta (incluidos errores 30x, 40x, 50x) se encontrará dentro del cuerpo de la respuesta, permitiendo al cliente manejar estos casos.16
+201 Created: La solicitud tuvo éxito y se creó un nuevo recurso como resultado (e.g., al enviar un mensaje o subir un adjunto).
+400 Bad Request: La solicitud no pudo ser procesada debido a un error del cliente (e.g., JSON malformado, parámetro faltante o inválido).2
+401 Unauthorized: La solicitud requiere autenticación o las credenciales proporcionadas (e.g., access_token) son inválidas o han expirado.18
+403 Forbidden: El servidor entendió la solicitud, pero se niega a autorizarla. Esto puede ocurrir si el access_token es válido pero no tiene los scopes necesarios para la operación solicitada, o si se intenta acceder a un recurso no permitido.2
+404 Not Found: El recurso solicitado no pudo ser encontrado en el servidor (e.g., un message_id o pack_id inexistente).2
+429 Too Many Requests: La aplicación ha excedido los límites de tasa de la API. Se debe reducir la frecuencia de las solicitudes e implementar una estrategia de reintento con backoff exponencial.19
+500 Internal Server Error: Ocurrió un error inesperado en el servidor de Mercado Libre. Generalmente, estos son problemas temporales y se puede reintentar la solicitud después de un breve período.2
+Formato Estándar de Error JSON:Cuando la API devuelve un error (típicamente con códigos de estado 4xx o 5xx), el cuerpo de la respuesta suele ser un objeto JSON con la siguiente estructura 16:JSON{
+  "message": "Texto legible por humanos que describe el error.",
+  "error": "codigo_de_error_legible_por_maquina",
+  "status": 400, // Código de estado HTTP
+  "cause": // Array con información adicional sobre la causa, puede estar vacío
+}
+El campo error es particularmente útil para la lógica de manejo de errores en la aplicación, ya que proporciona un identificador programático del tipo de error.B. Tabla: Códigos de Error Comunes de la API de MensajeríaLa siguiente tabla detalla errores específicos que se pueden encontrar al interactuar con los endpoints de la API de Mensajería. Estos han sido recopilados de la documentación relacionada con la gestión de mensajes y adjuntos.2HTTP StatusCódigo de Error (error field)Mensaje de la API (Ejemplo)Explicación/Posibles CausasAcción Recomendada400(varía)Attachment empty or nullSe intentó subir un adjunto sin proporcionar el archivo, o el archivo está vacío.Asegurar que el archivo se esté enviando correctamente en la solicitud multipart/form-data.400(varía)File name cannot include characters such as: /, \El nombre del archivo adjunto contiene caracteres no permitidos como / o \.Remover los caracteres no permitidos del nombre del archivo antes de subirlo.400(varía)File size exceeds 25 MbEl archivo adjunto supera el límite de tamaño de 25 MB.Reducir el tamaño del archivo o considerar alternativas si es necesario compartir archivos más grandes (e.g., un enlace a un almacenamiento externo).400(varía)Message exceeds allowed number of attachments: 25Se intentó enviar un mensaje con más de 25 archivos adjuntos.Reducir el número de adjuntos por mensaje.400(varía)Messages id empty or invalidEl ID de mensaje proporcionado en la solicitud es vacío o tiene un formato incorrecto.Verificar que el ID del mensaje sea válido y se esté enviando correctamente.400(varía)The specified message id: {id} does not existsEl ID de mensaje proporcionado no corresponde a un mensaje existente.Asegurar que el ID del mensaje sea correcto. Puede que el mensaje haya sido eliminado o el ID sea erróneo.400(varía)Not allowed messages from multiple ordersSe intentó realizar una operación (e.g., en unread) que involucra mensajes de múltiples órdenes de una manera no permitida.Revisar la lógica de la aplicación para asegurar que las operaciones se realicen en el contexto de una única orden/paquete según lo requiera el endpoint.400(varía)The limit param must be greater than 0.El parámetro limit para paginación se envió con un valor cero o negativo.Usar un valor positivo para el parámetro limit.400(varía)Invalid offset or limit paramLos parámetros offset o limit para paginación son inválidos (e.g., no numéricos).Asegurar que offset y limit sean enteros no negativos.400(varía)The text has character/s that is/are not supported.El texto del mensaje contiene caracteres no permitidos por la norma ISO-8859-1 o emoticonos no soportados.Validar que el texto del mensaje cumpla con las directrices de contenido (charset ISO-8859-1, lista de emoticonos permitidos).400(varía)The message content is too long, max characters allowed are 350El texto del mensaje excede el límite de 350 caracteres.Reducir la longitud del texto del mensaje para que no supere los 350 caracteres.400(varía)The queryparam 'site_id' is requiredFalta el parámetro de consulta site_id en una solicitud de adjuntos donde es obligatorio.Incluir el parámetro site_id en la URL de la solicitud para adjuntos.400(varía)The original_filename exceeded 200 character limitEl nombre original del archivo adjunto supera el límite de 200 caracteres.Acortar el nombre original del archivo adjunto.403forbiddenUser access token invalid for resource {resource_id}El access_token utilizado no tiene permisos para acceder al recurso de mensajería especificado, o el token es de otro usuario.Verificar que el access_token sea válido, no haya expirado, pertenezca al usuario correcto y tenga los scopes necesarios (read, write).403forbiddenblocked_conversation_send_message_forbiddenSe intentó enviar un mensaje en una conversación asociada a una orden cancelada. La mensajería se bloquea para órdenes canceladas.No intentar enviar mensajes en órdenes canceladas. Verificar el estado de la orden antes de intentar enviar un mensaje.404not_foundThe message with id: {id} could not be retrieved from storageEl mensaje con el ID especificado no se pudo encontrar. Puede que no exista o haya sido eliminado.Verificar que el ID del mensaje sea correcto. Reintentar después de unos segundos si se sospecha de un problema temporal de replicación.500internal_server_errorRequested file could not be obtainedError interno al intentar acceder al archivo adjunto solicitado.Reintentar la solicitud después de un breve período. Si el problema persiste, podría ser un error del lado del servidor.500internal_server_errorFile can not be saved, try it later.Error interno al intentar guardar el archivo adjunto subido.Reintentar la subida después de un breve período. Verificar que el archivo cumpla todas las restricciones (tamaño, tipo). Si persiste, contactar soporte.C. Tabla: Errores de Autenticación y Autorización OAuth 2.0Los errores durante el flujo de OAuth 2.0 impiden obtener el access_token necesario para interactuar con la API. La siguiente tabla, basada en 8 y 8, detalla estos errores.Código de Error (error field)Mensaje de la API (Ejemplo)Causas ComunesAcción Recomendadainvalid_clientInvalid client_id and/or client_secret provided.El client_id o client_secret proporcionados en la solicitud de token son incorrectos o no corresponden a una aplicación válida.Verificar que el client_id y client_secret sean correctos y correspondan a la aplicación registrada. Asegurarse de que no haya errores tipográficos.invalid_grantThe provided authorization grant (e.g., authorization code, resource owner credentials) or refresh token is invalid, expired, revoked, does not match the redirection URI used in the authorization request, or was issued to another client.El código de autorización (code) ha expirado, ya fue utilizado, fue revocado, o no coincide con la redirect_uri. El refresh_token es inválido, ha expirado, fue revocado, o fue emitido para otro client_id.Para grant_type=authorization_code: Asegurar que el code sea fresco y de un solo uso. Verificar que la redirect_uri en la solicitud de token coincida exactamente con la usada para obtener el code. Reiniciar el flujo de autorización si es necesario. Para grant_type=refresh_token: Asegurar que se está utilizando el refresh_token más reciente y válido. Si está revocado o expirado, se debe reiniciar el flujo de autorización completo para obtener un nuevo par de tokens.invalid_scopeThe requested scope is invalid, unknown, or malformed.El valor del parámetro scope solicitado durante el flujo de autorización no es válido o no está permitido para la aplicación.Verificar que los scopes solicitados (read, write, offline_access) sean válidos y estén permitidos para la aplicación según su configuración.invalid_requestThe request is missing a required parameter, includes an unsupported parameter or parameter value, repeats a parameter, includes multiple credentials, utilizes more than one mechanism for authenticating the client, or is otherwise malformed.Falta un parámetro obligatorio en la solicitud de token (e.g., grant_type, client_id), o se incluye un parámetro no soportado, o la solicitud está malformada.Revisar cuidadosamente la solicitud de token para asegurar que todos los parámetros requeridos estén presentes y sean correctos, y que no haya parámetros extraños o malformados.unsupported_grant_typeThe authorization grant type is not supported by the authorization server.El valor del parámetro grant_type no es "authorization_code" ni "refresh_token".Asegurar que grant_type sea uno de los valores soportados.forbidden (HTTP 403)(Varía) The call is not authorized to access the resource.El usuario que intenta autorizar la aplicación no tiene los permisos necesarios (e.g., no es administrador de la cuenta de Mercado Libre), o hay restricciones geográficas.Asegurar que el usuario que autoriza la aplicación tenga los permisos adecuados en Mercado Libre. Verificar que la aplicación esté operando en el sitio/país correcto.D. Estrategias para Depuración y Resolución de Problemas
+Registro Detallado (Logging): Implementar un sistema de logging exhaustivo en la aplicación que registre todas las solicitudes enviadas a la API de Mercado Libre (incluyendo cabeceras y cuerpo, omitiendo datos sensibles como el client_secret en logs de producción), las respuestas recibidas (especialmente los cuerpos de error JSON completos), y cualquier ID de correlación si es proporcionado por la API. Esto es invaluable para el análisis post-mortem de problemas.
+Uso de Herramientas de Cliente API: Herramientas como Postman, Insomnia o incluso curl son muy útiles para probar las solicitudes a la API de forma aislada, fuera del contexto de la aplicación completa. Esto ayuda a verificar la correcta formación de las solicitudes, la validez de los tokens y a entender las respuestas de la API directamente.
+Verificación de Parámetros Regionales: Dada la naturaleza multi-país de Mercado Libre, es crucial verificar siempre que se esté utilizando el site_id correcto (e.g., MLM, MLB, MLA) en los endpoints o parámetros que lo requieran. Un site_id incorrecto puede llevar a errores 404 o a operar sobre datos de un mercado equivocado.
+Validación de Tokens y Scopes: Antes de realizar llamadas a endpoints protegidos, verificar programáticamente que el access_token no haya expirado (o esté cerca de expirar, para refrescarlo proactivamente) y que posea los scopes necesarios para la operación que se va a realizar.
+Consulta de Documentación Oficial: Si se encuentra un código de error o comportamiento no cubierto en este manual o en la documentación consultada, referirse siempre a la documentación oficial más reciente de Desarrolladores de Mercado Libre, ya que puede contener información actualizada o más específica.
+Aislamiento del Problema: Si un flujo complejo falla, intentar desglosarlo en llamadas API individuales para identificar en qué punto exacto ocurre el error.
+VII. Uso de la API: Límites de Tasa y Mejores PrácticasPara mantener la estabilidad y el rendimiento de la plataforma para todos los usuarios, Mercado Libre impone límites de tasa (rate limits) en el uso de sus APIs. Además, seguir un conjunto de mejores prácticas asegura una integración eficiente, segura y respetuosa con la plataforma.A. Comprensión y Respeto de los Límites de Tasa de la API 11Exceder los límites de tasa resultará en respuestas de error HTTP 429 ("Too Many Requests"), lo que interrumpirá la funcionalidad de la aplicación.
+
+Límites Generales de la API: La documentación menciona un límite general para las APIs de Mercado Libre de 1500 solicitudes por minuto por vendedor.19 Este límite se aplica a las solicitudes agregadas a diversos endpoints.
+
+
+Límites Específicos de la API de Mensajería 11:Es crucial destacar que la API de Mensajería tiene sus propios límites de tasa, más estrictos que el límite general, y que se aplican de forma independiente para operaciones de lectura y escritura:
+
+Recursos de Consulta (GET): Comparten un límite de 500 solicitudes por minuto (rpm). Esto significa que todas las llamadas GET a los diferentes endpoints de mensajería (e.g., obtener mensajes por pack, obtener mensaje por ID, listar no leídos) suman para este límite.
+Recursos de Escritura (POST/PUT): También comparten entre sí un límite de 500 solicitudes por minuto (rpm). Esto incluye operaciones como enviar mensajes o subir adjuntos.
+
+Esta distinción es fundamental. Una aplicación podría estar por debajo del límite general de 1500 rpm del vendedor, pero si realiza, por ejemplo, 600 solicitudes GET a la API de Mensajería en un minuto, comenzará a recibir errores 429. La naturaleza compartida de estos límites específicos (todas las lecturas en un pool, todas las escrituras en otro) implica que diferentes operaciones de mensajería pueden impactar la cuota disponible de las demás.
+
+
+Manejo de Errores HTTP 429:Cuando se recibe un error 429, la aplicación debe:
+
+Cesar temporalmente el envío de solicitudes al endpoint o grupo de endpoints que alcanzó el límite.
+Implementar una estrategia de backoff exponencial: esperar un breve período inicial (e.g., unos segundos) y luego reintentar la solicitud. Si el reintento también falla con 429, duplicar el tiempo de espera antes del siguiente reintento, y así sucesivamente, hasta un número máximo de reintentos o un tiempo de espera máximo.20 Añadir un pequeño factor aleatorio (jitter) al tiempo de espera puede ayudar a evitar que múltiples instancias de la aplicación reintenten exactamente al mismo tiempo.
+Analizar los patrones de uso para identificar si es necesario optimizar la frecuencia de las llamadas o distribuir mejor las solicitudes a lo largo del tiempo.21
+
+
+B. Mejores Prácticas Generales para la Integración de API 10
+Uso Exclusivo de HTTPS: Todas las comunicaciones con la API de Mercado Libre deben realizarse a través de HTTPS. Esto es un requisito de seguridad fundamental y será estrictamente aplicado a partir de mayo de 2025.5
+Manejo Eficiente de Datos:
+
+Recuperación Selectiva de Campos: Cuando la API lo permita (generalmente en endpoints de listado o búsqueda), utilizar el parámetro attributes para especificar solo los campos que la aplicación necesita. Esto reduce el tamaño de la respuesta, disminuye la latencia y el consumo de ancho de banda.16 Ejemplo: /items?ids=ITEM_ID1&attributes=id,title,price.
+Paginación Correcta: Utilizar los parámetros limit y offset (o equivalentes basados en cursores, si la API los ofrece para ciertos endpoints) para recuperar grandes conjuntos de datos en bloques manejables, en lugar de intentar obtenerlos todos de una vez.16 Respetar los límites máximos de limit que imponga cada endpoint.
+
+
+Gestión Segura de Credenciales:
+
+Proteger rigurosamente el client_secret, los access_token y, especialmente, los refresh_token. Nunca incrustarlos directamente en el código del lado del cliente o en repositorios de código públicos.
+Utilizar variables de entorno, sistemas de gestión de secretos (como HashiCorp Vault, AWS Secrets Manager, Azure Key Vault) o mecanismos seguros proporcionados por la plataforma de despliegue para almacenar y acceder a estas credenciales.10
+Implementar un almacenamiento en caché seguro para los access_token y una lógica robusta para el manejo de refresh_token.10
+
+
+Idempotencia: Siempre que sea posible, diseñar las operaciones de escritura (POST, PUT, DELETE) para que sean idempotentes. Esto significa que realizar la misma solicitud múltiples veces tenga el mismo efecto que realizarla una sola vez. Si bien la API de Mercado Libre no garantiza la idempotencia para todas las operaciones de mensajería (e.g., enviar el mismo mensaje dos veces creará dos mensajes), la aplicación cliente puede implementar su propia lógica para evitar duplicados si, por ejemplo, no está segura del resultado de una solicitud anterior debido a un error de red. Esto puede implicar el uso de identificadores únicos de solicitud generados por el cliente si la API los soporta.
+Manejo Proactivo de Errores: No asumir que las llamadas a la API siempre tendrán éxito. Implementar un manejo de errores exhaustivo para todos los códigos de estado HTTP relevantes y códigos de error específicos de la API.
+C. Mejores Prácticas para la Mensajería Postventa 1La API de Mensajería es una herramienta poderosa, pero su uso debe ser considerado para no afectar negativamente la experiencia del comprador.
+Evitar Mensajes Automatizados Excesivos o Innecesarios: El objetivo de la mensajería postventa es aportar valor y resolver problemas, no generar spam. Mercado Libre desaconseja explícitamente el envío de "mensajes repetitivos o innecesarios", ya que esto genera una mala experiencia para el comprador.21 Las automatizaciones deben ser inteligentes y contextualmente relevantes.
+Elección de un Motivo al Iniciar Contacto: La API está diseñada para que los vendedores inicien el contacto "eligiendo una razón".1 Esto ayuda a estructurar la comunicación y a reducir la carga operativa. Las integraciones deben, en la medida de lo posible, seguir este principio, enviando mensajes que sean pertinentes a la etapa de la orden o a una necesidad específica del comprador.
+Sincronización Estratégica de Mensajes: Comprender los momentos clave del flujo postventa en los que un mensaje puede ser útil y bien recibido por el comprador (e.g., confirmación de envío con número de seguimiento, instrucciones de uso para productos complejos, solicitud de feedback después de un tiempo prudencial de recibida la compra).21
+Uso de Notificaciones en Lugar de Polling: Para obtener actualizaciones en tiempo real sobre nuevos mensajes o cambios en las conversaciones, utilizar el sistema de notificaciones de Mercado Libre (webhooks) en lugar de realizar sondeos frecuentes a la API. Esto es más eficiente, escalable y ayuda a no exceder los límites de tasa (como se detalla en la Sección IV.D).
+Respeto por las Preferencias del Comprador: Si un comprador indica explícitamente que no desea recibir más mensajes (a menos que sean críticos para la orden), se debe respetar esta preferencia. Aunque la API no exponga directamente un mecanismo para esto, las políticas de la plataforma pueden penalizar el acoso.
+No Clonar Publicaciones ni Imágenes: Aunque no está directamente relacionado con la mensajería, es una buena práctica general mencionada en el contexto de políticas de Mercado Libre.21
+Seguir estas mejores prácticas no solo asegura el cumplimiento de las políticas de Mercado Libre, sino que también contribuye a construir una reputación positiva como vendedor, fomenta la confianza del cliente y optimiza la eficiencia operativa de la integración con la API.VIII. ConclusiónLa API de Mensajería de Mercado Libre se erige como una herramienta indispensable para los desarrolladores que buscan optimizar la comunicación postventa en la plataforma. Su correcta implementación permite automatizar interacciones, integrarse con sistemas externos y, en última instancia, mejorar la experiencia tanto del comprador como del vendedor.Este manual ha detallado exhaustivamente los pasos necesarios para una integración exitosa, comenzando por la configuración de la aplicación y el robusto flujo de autenticación OAuth 2.0, incluyendo la gestión crítica de access_token y refresh_token. Se han explorado en profundidad las operaciones centrales de mensajería: la recuperación de conversaciones por paquete u orden, el envío de mensajes de texto, y el manejo integral de archivos adjuntos, desde su subida hasta su recuperación, respetando las directrices de contenido y los formatos permitidos.La gestión de hilos de conversación, el control del estado de lectura de los mensajes y, fundamentalmente, la suscripción a notificaciones para actualizaciones en tiempo real, son aspectos clave para una interacción dinámica y eficiente. Se ha puesto especial énfasis en las actualizaciones relevantes para el período de mayo de 2025, destacando la obligatoriedad del uso de HTTPS para todas las comunicaciones API y el impacto crítico de la transición a IDs de usuario en formato Int64, un cambio que requiere atención inmediata por parte de los desarrolladores para asegurar la compatibilidad de sus sistemas.Una integración robusta exige un manejo proactivo de errores, para lo cual se han proporcionado tablas detalladas de códigos de error comunes, tanto generales de HTTP y OAuth 2.0 como específicos de la API de Mensajería. Asimismo, el respeto por los límites de tasa, que para la API de Mensajería son más estrictos que los generales de la plataforma, es vital para la estabilidad de la aplicación, recomendándose estrategias de backoff exponencial y optimización de solicitudes.Finalmente, las mejores prácticas, tanto generales para la integración de APIs como específicas para la comunicación postventa, buscan guiar al desarrollador hacia un uso responsable y efectivo de la API, priorizando la calidad de la interacción sobre la cantidad, y alineándose con las políticas de Mercado Libre para fomentar una experiencia de usuario positiva.Se insta a los desarrolladores a consultar de manera continua la documentación oficial de Mercado Libre y sus registros de cambios, ya que la plataforma y sus APIs están en constante evolución. La adopción de las directrices y conocimientos presentados en este manual sentará una base sólida para construir integraciones de mensajería potentes, seguras y eficientes con Mercado Libre.

@@ -329,54 +329,85 @@ export async function sendPackMessage(data: {
     // ENDPOINT CORRECTO según documentación oficial
     const endpoint = `/messages/packs/${data.pack_id}/sellers/${sellerId}`;
 
-    // Obtener información del comprador desde el pack
+    // Obtener información del comprador desde el pack - OBLIGATORIO según la documentación
     let buyerId: number | undefined;
 
-    // Primero intentar obtener del endpoint interno de packs
+    // Método 1: Obtener desde el endpoint de órdenes directo (más confiable)
     try {
-      const packsResponse = await fetch(
-        `http://localhost:3000/api/mercadolibre/packs?limit=50`
-      );
-      if (packsResponse.ok) {
-        const packsData = await packsResponse.json();
-        const pack = packsData.packs?.find((p: any) => p.id === data.pack_id);
-        if (pack?.buyer?.id) {
-          buyerId = pack.buyer.id;
-          console.log(`🎯 Found buyer info from packs endpoint: ${buyerId}`);
+      console.log(`🔍 Getting order info for pack ${data.pack_id}`);
+      const orderResponse = await fetch(`${API_URL}/orders/${data.pack_id}`, {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          'Content-Type': 'application/json'
         }
+      });
+
+      if (orderResponse.ok) {
+        const orderInfo = await orderResponse.json();
+        buyerId = orderInfo.buyer?.id;
+        console.log(`🎯 Found buyer info from order: ${buyerId}`);
       }
     } catch (error) {
-      console.warn(`⚠️ Could not get buyer info from packs endpoint: ${error}`);
+      console.warn(`⚠️ Could not get buyer info from order: ${error}`);
     }
 
-    // Si no encontramos desde packs, intentar desde orden directamente
+    // Método 2: Si no funcionó, buscar en packs endpoint interno
     if (!buyerId) {
       try {
-        const orderResponse = await fetch(`${API_URL}/orders/${data.pack_id}`, {
-          headers: {
-            Authorization: `Bearer ${access_token}`,
-            'Content-Type': 'application/json'
+        console.log(`🔍 Searching packs for buyer info`);
+        const packsResponse = await fetch(
+          `http://localhost:3000/api/mercadolibre/packs?limit=50`
+        );
+        if (packsResponse.ok) {
+          const packsData = await packsResponse.json();
+          const pack = packsData.packs?.find((p: any) => p.id === data.pack_id);
+          if (pack?.buyer?.id) {
+            buyerId = pack.buyer.id;
+            console.log(`🎯 Found buyer info from packs: ${buyerId}`);
           }
-        });
-
-        if (orderResponse.ok) {
-          const orderInfo = await orderResponse.json();
-          buyerId = orderInfo.buyer?.id;
-          console.log(`🎯 Found buyer info from order endpoint: ${buyerId}`);
         }
       } catch (error) {
-        console.warn(
-          `⚠️ Could not get buyer info from order endpoint: ${error}`
-        );
+        console.warn(`⚠️ Could not get buyer info from packs: ${error}`);
       }
     }
 
-    // Como último recurso, intentar extraer de mensajes existentes
+    // Método 3: Intentar desde búsqueda de órdenes por seller
     if (!buyerId) {
-      console.log(
-        `🔍 Attempting to get buyer info from existing messages for pack ${data.pack_id}`
-      );
       try {
+        console.log(`🔍 Searching orders for pack ${data.pack_id}`);
+        const searchResponse = await fetch(
+          `${API_URL}/orders/search?seller=${sellerId}&limit=50`,
+          {
+            headers: {
+              Authorization: `Bearer ${access_token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          // Buscar la orden específica en los resultados
+          const orderResult = searchData.results?.find((result: any) => {
+            return result.orders?.some(
+              (order: any) => order.id.toString() === data.pack_id
+            );
+          });
+
+          if (orderResult?.buyer?.id) {
+            buyerId = orderResult.buyer.id;
+            console.log(`🎯 Found buyer info from order search: ${buyerId}`);
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️ Could not search orders for buyer info: ${error}`);
+      }
+    }
+
+    // Método 4: Como último recurso, intentar extraer de mensajes existentes
+    if (!buyerId) {
+      try {
+        console.log(`🔍 Trying to extract buyer from existing messages`);
         const messagesResponse = await apiFetch<MessagesResponse>(
           `/messages/packs/${data.pack_id}/sellers/${sellerId}`,
           {
@@ -385,7 +416,6 @@ export async function sendPackMessage(data: {
         );
 
         if (messagesResponse.messages && messagesResponse.messages.length > 0) {
-          // Extraer buyer_id del primer mensaje (from o to dependiendo de quién envió)
           const firstMessage = messagesResponse.messages[0];
           if (firstMessage.from.user_id !== sellerId) {
             buyerId = firstMessage.from.user_id;
@@ -399,24 +429,27 @@ export async function sendPackMessage(data: {
       }
     }
 
+    // Validar que tenemos buyer_id (OBLIGATORIO)
+    if (!buyerId) {
+      throw new Error(
+        `No se pudo obtener el buyer_id para el pack ${data.pack_id}. Esto es requerido para enviar mensajes.`
+      );
+    }
+
+    // Construir payload con campos OBLIGATORIOS según la documentación
     const payload: any = {
       from: {
-        user_id: sellerId
+        user_id: sellerId.toString() // Asegurar que sea string como en la documentación
+      },
+      to: {
+        user_id: buyerId.toString() // Asegurar que sea string como en la documentación
       },
       text: data.text
     };
 
-    // Agregar información del comprador si está disponible
-    if (buyerId) {
-      payload.to = {
-        user_id: buyerId
-      };
-      console.log(
-        `📤 Sending message from seller ${sellerId} to buyer ${buyerId}`
-      );
-    } else {
-      console.warn(`⚠️ Could not determine buyer_id for pack ${data.pack_id}`);
-    }
+    console.log(
+      `📤 Sending message from seller ${sellerId} to buyer ${buyerId}`
+    );
 
     if (data.attachments && data.attachments.length > 0) {
       payload.attachments = data.attachments;
@@ -541,28 +574,24 @@ export async function getMessageCaps(
   ];
 }
 
-// Iniciar conversación con un pack usando action guide
+// Iniciar conversación con un pack - usando endpoint simplificado
 export async function initiateConversation(data: {
   pack_id: string;
   option_id: string;
   template_id?: string;
   text?: string;
 }): Promise<MessageResponse> {
-  const { pack_id, option_id, template_id, text } = data;
+  const { pack_id, text } = data;
 
-  // Validar texto para opciones de texto libre
-  if ((option_id === 'OTHER' || option_id === 'SEND_INVOICE_LINK') && text) {
-    validateText(text);
+  // Para simplificar, usamos el endpoint de envío directo de mensajes
+  if (!text) {
+    throw new Error('Text is required to initiate conversation');
   }
 
-  const body: any = { option_id };
-  if (template_id) body.template_id = template_id;
-  if (text) body.text = text;
-
-  return apiFetch(`/messages/action_guide/packs/${pack_id}/option`, {
-    method: 'POST',
-    query: { tag: TAG },
-    body: JSON.stringify(body)
+  // Enviar mensaje usando la función estándar
+  return await sendPackMessage({
+    pack_id,
+    text
   });
 }
 
