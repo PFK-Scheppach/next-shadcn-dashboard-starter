@@ -1,7 +1,8 @@
 import {
   fetchMessageThreads,
   sendBuyerMessage,
-  type MercadoLibreThread
+  type MercadoLibreThread,
+  type MercadoLibreMessage
 } from '@/lib/mercadolibre';
 
 export interface MessageThread {
@@ -9,7 +10,39 @@ export interface MessageThread {
   buyerUserId: string;
   buyerNickname: string;
   lastMessageDate: string;
-  messages: MercadoLibreThread['last_message'][];
+  messages: Array<{
+    id: string;
+    text: string;
+    from: {
+      user_id: string;
+    };
+    to: {
+      user_id: string;
+    };
+    message_date: {
+      created: string;
+      received: string;
+      available: string;
+      notified: string;
+      read?: string;
+    };
+    status: string;
+  }>;
+}
+
+function normalizeMessageText(text: string | { plain: string }): string {
+  return typeof text === 'string' ? text : text.plain;
+}
+
+function convertMessage(message: MercadoLibreMessage) {
+  return {
+    id: message.id,
+    text: normalizeMessageText(message.text),
+    from: message.from,
+    to: message.to,
+    message_date: message.message_date,
+    status: message.status
+  };
 }
 
 export async function getMessageThreads(): Promise<MessageThread[]> {
@@ -20,7 +53,7 @@ export async function getMessageThreads(): Promise<MessageThread[]> {
       buyerUserId: t.other_user.id,
       buyerNickname: t.other_user.nickname || 'Cliente',
       lastMessageDate: t.last_message.message_date.created,
-      messages: [t.last_message]
+      messages: [convertMessage(t.last_message)]
     }));
   } catch (error) {
     console.error('Error getting message threads:', error);
@@ -39,7 +72,7 @@ export async function getMessageThreadsByDateRange(
       buyerUserId: t.other_user.id,
       buyerNickname: t.other_user.nickname || 'Cliente',
       lastMessageDate: t.last_message.message_date.created,
-      messages: [t.last_message]
+      messages: [convertMessage(t.last_message)]
     }));
   } catch (error) {
     console.error('Error getting message threads by date range:', error);
@@ -78,8 +111,8 @@ export function formatMessageDate(dateString: string): string {
   }
 }
 
-export function isMessageFromSeller(
-  message: MercadoLibreThread['last_message']
-): boolean {
+export function isMessageFromSeller(message: {
+  from: { user_id: string };
+}): boolean {
   return message.from.user_id === process.env.MERCADOLIBRE_SELLER_ID;
 }
