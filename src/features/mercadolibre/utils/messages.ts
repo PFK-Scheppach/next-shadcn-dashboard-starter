@@ -1,5 +1,6 @@
 import {
   fetchMessageThreads,
+  fetchMessagesForPack,
   sendBuyerMessage,
   type MercadoLibreThread,
   type MercadoLibreMessage
@@ -13,12 +14,8 @@ export interface MessageThread {
   messages: Array<{
     id: string;
     text: string;
-    from: {
-      user_id: string;
-    };
-    to: {
-      user_id: string;
-    };
+    from: { user_id: string };
+    to: { user_id: string };
     message_date: {
       created: string;
       received: string;
@@ -30,31 +27,30 @@ export interface MessageThread {
   }>;
 }
 
-function normalizeMessageText(text: string | { plain: string }): string {
-  return typeof text === 'string' ? text : text.plain;
-}
-
-function convertMessage(message: MercadoLibreMessage) {
-  return {
-    id: message.id,
-    text: normalizeMessageText(message.text),
-    from: message.from,
-    to: message.to,
-    message_date: message.message_date,
-    status: message.status
-  };
-}
-
 export async function getMessageThreads(): Promise<MessageThread[]> {
   try {
     const threads = await fetchMessageThreads();
-    return threads.map((t) => ({
-      packId: t.pack_id,
-      buyerUserId: t.other_user.id,
-      buyerNickname: t.other_user.nickname || 'Cliente',
-      lastMessageDate: t.last_message.message_date.created,
-      messages: [convertMessage(t.last_message)]
-    }));
+    const result: MessageThread[] = [];
+
+    for (const t of threads) {
+      const msgs = await fetchMessagesForPack(t.pack_id);
+      const normalized = msgs.map((m) => ({
+        ...m,
+        text:
+          typeof m.text === 'object' && 'plain' in m.text
+            ? m.text.plain
+            : m.text
+      }));
+      result.push({
+        packId: t.pack_id,
+        buyerUserId: t.other_user.id,
+        buyerNickname: t.other_user.nickname || 'Cliente',
+        lastMessageDate: t.last_message.message_date.created,
+        messages: normalized.slice(-5)
+      });
+    }
+
+    return result;
   } catch (error) {
     console.error('Error getting message threads:', error);
     return [];
@@ -67,13 +63,27 @@ export async function getMessageThreadsByDateRange(
 ): Promise<MessageThread[]> {
   try {
     const threads = await fetchMessageThreads(fromDate, toDate);
-    return threads.map((t) => ({
-      packId: t.pack_id,
-      buyerUserId: t.other_user.id,
-      buyerNickname: t.other_user.nickname || 'Cliente',
-      lastMessageDate: t.last_message.message_date.created,
-      messages: [convertMessage(t.last_message)]
-    }));
+    const result: MessageThread[] = [];
+
+    for (const t of threads) {
+      const msgs = await fetchMessagesForPack(t.pack_id);
+      const normalized = msgs.map((m) => ({
+        ...m,
+        text:
+          typeof m.text === 'object' && 'plain' in m.text
+            ? m.text.plain
+            : m.text
+      }));
+      result.push({
+        packId: t.pack_id,
+        buyerUserId: t.other_user.id,
+        buyerNickname: t.other_user.nickname || 'Cliente',
+        lastMessageDate: t.last_message.message_date.created,
+        messages: normalized.slice(-5)
+      });
+    }
+
+    return result;
   } catch (error) {
     console.error('Error getting message threads by date range:', error);
     return [];
@@ -111,8 +121,6 @@ export function formatMessageDate(dateString: string): string {
   }
 }
 
-export function isMessageFromSeller(message: {
-  from: { user_id: string };
-}): boolean {
+export function isMessageFromSeller(message: MercadoLibreMessage): boolean {
   return message.from.user_id === process.env.MERCADOLIBRE_SELLER_ID;
 }

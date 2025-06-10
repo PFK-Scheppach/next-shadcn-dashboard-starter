@@ -17,7 +17,7 @@ export async function GET(
     }
 
     const trackingNumber = order.shipping?.tracking_number;
-    const status = order.shipping?.status || order.status;
+    const status = order.shipping?.status;
     return NextResponse.json({
       status,
       trackingNumber,
