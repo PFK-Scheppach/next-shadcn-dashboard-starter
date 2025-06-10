@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -18,6 +18,8 @@ import {
   MessageSquare,
   Clock,
   CheckCircle,
+  Check,
+  CheckCheck,
   Truck,
   Hash
 } from 'lucide-react';
@@ -191,13 +193,39 @@ export default function MessagesPage() {
     }
   };
 
-  const filteredPacks = packs.filter(
-    (pack) =>
-      pack.buyer.nickname.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pack.product_info?.title
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      pack.id.includes(searchTerm)
+  const getMessageStatusIcon = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'read':
+        return <CheckCheck className='ml-1 inline h-3 w-3 text-blue-500' />;
+      case 'delivered':
+      case 'sent':
+        return <Check className='ml-1 inline h-3 w-3 text-gray-400' />;
+      default:
+        return null;
+    }
+  };
+
+  const sortedPacks = useMemo(
+    () =>
+      [...packs].sort(
+        (a, b) =>
+          new Date(b.last_message_date || b.date_created).getTime() -
+          new Date(a.last_message_date || a.date_created).getTime()
+      ),
+    [packs]
+  );
+
+  const filteredPacks = useMemo(
+    () =>
+      sortedPacks.filter(
+        (pack) =>
+          pack.buyer.nickname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          pack.product_info?.title
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          pack.id.includes(searchTerm)
+      ),
+    [searchTerm, sortedPacks]
   );
 
   if (loading) {
@@ -417,6 +445,7 @@ export default function MessagesPage() {
                             <span className='ml-2'>
                               {formatTime(message.message_date.received)}
                             </span>
+                            {isFromSeller && getMessageStatusIcon(message.status)}
                           </div>
                         </div>
 

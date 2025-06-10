@@ -77,6 +77,28 @@ export default function ConversationList({
   searchTerm,
   onSearchChange
 }: ConversationListProps) {
+  const sortedPacks = useMemo(
+    () =>
+      [...packs].sort(
+        (a, b) =>
+          new Date(b.last_message_date || b.date_created).getTime() -
+          new Date(a.last_message_date || a.date_created).getTime()
+      ),
+    [packs]
+  );
+
+  const filteredPacks = useMemo(
+    () =>
+      sortedPacks.filter(
+        (pack) =>
+          pack.buyer.nickname.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          pack.product_info?.title
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          pack.id.includes(searchTerm)
+      ),
+    [searchTerm, sortedPacks]
+  );
   const formatRelativeTime = (dateString: string) => {
     const now = new Date();
     const date = new Date(dateString);
@@ -164,7 +186,7 @@ export default function ConversationList({
     );
   }
 
-  if (packs.length === 0) {
+  if (filteredPacks.length === 0) {
     return (
       <div className='flex h-64 flex-col items-center justify-center text-gray-400'>
         <Users className='mb-4 h-16 w-16 opacity-50' />
@@ -193,7 +215,7 @@ export default function ConversationList({
   return (
     <ScrollArea className='flex-1'>
       <div className='space-y-1 p-2'>
-        {packs.map((pack, index) => (
+        {filteredPacks.map((pack, index) => (
           <div
             key={`${pack.id}-${index}`}
             className={`group relative cursor-pointer rounded-xl p-3 transition-all duration-200 ${

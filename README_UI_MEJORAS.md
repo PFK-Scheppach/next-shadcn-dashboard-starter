@@ -74,6 +74,7 @@ src/components/messages/
 - Búsqueda en tiempo real por múltiples campos
 - Filtros combinables
 - Ordenamiento personalizable
+- Conversaciones ordenadas por última actividad
 - Persistencia de estado de filtros
 
 #### **Estados de Conversación**
@@ -102,6 +103,7 @@ src/components/messages/
 - ✅ Diseño moderno y atractivo
 - ✅ Navegación intuitiva
 - ✅ Estados visuales claros
+- ✅ Iconos de estado de mensajes (enviado, entregado, leído)
 - ✅ Feedback de usuario mejorado
 - ✅ Responsivo y accesible
 
