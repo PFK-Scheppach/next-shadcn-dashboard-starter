@@ -10,6 +10,7 @@ export interface MercadoLibreOrder {
   shipping?: {
     tracking_number?: string;
     status?: string;
+    id?: number;
     [key: string]: any;
   };
   [key: string]: any;
@@ -159,6 +160,77 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 }
 
+async function fetchShipmentDetails(
+  shipmentId: string
+): Promise<{ status?: string; tracking_number?: string } | null> {
+  if (!currentToken) {
+    const refreshed = await refreshAccessToken();
+    if (!refreshed) return null;
+  }
+
+  const url = `https://api.mercadolibre.com/shipments/${shipmentId}`;
+  try {
+    const res = await throttledApiCall(url, {
+      headers: {
+        Authorization: `Bearer ${currentToken}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (res.status === 401) {
+      const newToken = await refreshAccessToken();
+      if (!newToken) return null;
+
+      const retryRes = await throttledApiCall(url, {
+        headers: {
+          Authorization: `Bearer ${newToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!retryRes.ok) {
+        console.error(
+          'Failed to fetch MercadoLibre shipment after token refresh',
+          await retryRes.text()
+        );
+        return null;
+      }
+
+      return (await retryRes.json()) as {
+        status?: string;
+        tracking_number?: string;
+      };
+    }
+
+    if (!res.ok) {
+      console.error('Failed to fetch MercadoLibre shipment', await res.text());
+      return null;
+    }
+
+    return (await res.json()) as {
+      status?: string;
+      tracking_number?: string;
+    };
+  } catch (error) {
+    console.error('Error fetching MercadoLibre shipment:', error);
+    return null;
+  }
+}
+
+async function attachShippingInfo(order: MercadoLibreOrder) {
+  const id = order.shipping?.id as number | undefined;
+  if (!id) return order;
+  const details = await fetchShipmentDetails(String(id));
+  if (details) {
+    order.shipping = {
+      ...order.shipping,
+      status: details.status,
+      tracking_number: details.tracking_number
+    };
+  }
+  return order;
+}
+
 // Default function - only current month orders to avoid API overload
 export async function fetchOrders(): Promise<MercadoLibreOrder[]> {
   const currentMonth = getCurrentMonthRange();
@@ -225,7 +297,10 @@ export async function fetchOrdersByDateRange(
         }
 
         const data = await retryRes.json();
-        allOrders.push(...(data.results as MercadoLibreOrder[]));
+        const processed = await Promise.all(
+          (data.results as MercadoLibreOrder[]).map(attachShippingInfo)
+        );
+        allOrders.push(...processed);
         if (data.results.length < limit) break;
       } else {
         if (!res.ok) {
@@ -237,7 +312,10 @@ export async function fetchOrdersByDateRange(
         }
 
         const data = await res.json();
-        allOrders.push(...(data.results as MercadoLibreOrder[]));
+        const processed = await Promise.all(
+          (data.results as MercadoLibreOrder[]).map(attachShippingInfo)
+        );
+        allOrders.push(...processed);
         if (data.results.length < limit) break;
       }
 
@@ -895,7 +973,8 @@ export async function fetchOrderDetails(
         return null;
       }
 
-      return await retryRes.json();
+      const order = (await retryRes.json()) as MercadoLibreOrder;
+      return await attachShippingInfo(order);
     }
 
     if (!res.ok) {
@@ -903,7 +982,8 @@ export async function fetchOrderDetails(
       return null;
     }
 
-    return await res.json();
+    const order = (await res.json()) as MercadoLibreOrder;
+    return await attachShippingInfo(order);
   } catch (error) {
     console.error('Error fetching order details:', error);
     return null;
