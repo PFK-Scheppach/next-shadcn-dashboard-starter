@@ -3,6 +3,7 @@ export interface MercadoLibreOrder {
   date_created: string;
   total_amount: number;
   buyer: {
+    id: number;
     nickname: string;
   };
   pack_id?: number;
