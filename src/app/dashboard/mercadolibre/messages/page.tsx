@@ -2,15 +2,10 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
-import { Search, MessageSquare, Check, CheckCheck } from 'lucide-react';
+
+import { Search, MessageSquare, Check, CheckCheck, Send } from 'lucide-react';
 
 import ChatHeader from '@/components/messages/ChatHeader';
-import ChatMessages from '@/components/messages/ChatMessages';
-import ChatInput from '@/components/messages/ChatInput';
 
 interface Pack {
   id: string;
@@ -63,8 +58,17 @@ export default function MessagesPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   };
+
+  // Auto-scroll cuando lleguen nuevos mensajes
+  useEffect(() => {
+    if (messages.length > 0) {
+      setTimeout(() => scrollToBottom(), 100);
+    }
+  }, [messages]);
 
   useEffect(() => {
     scrollToBottom();
@@ -230,241 +234,323 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className='flex h-screen bg-gradient-to-br from-slate-50 to-slate-100'>
+    <div className='flex h-screen bg-gray-800'>
       {/* SIDEBAR - Lista de conversaciones */}
-      <div className='flex w-96 flex-col border-r border-slate-200 bg-white shadow-lg'>
+      <div className='flex w-96 flex-col border-r border-gray-700 bg-gray-900'>
         {/* Header del sidebar */}
-        <div className='border-b border-slate-200 bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-white'>
-          <h1 className='mb-4 text-2xl font-bold'>💬 Mensajes</h1>
+        <div className='border-b border-gray-700 bg-gray-800 p-4'>
+          <h1 className='mb-3 flex items-center text-xl font-semibold text-white'>
+            <MessageSquare className='mr-2 h-5 w-5' />
+            Mensajes
+          </h1>
           <div className='relative'>
-            <Search className='absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-slate-400' />
+            <Search className='absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400' />
             <Input
               placeholder='Buscar conversaciones...'
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className='border-0 bg-white/90 pl-10 focus:ring-2 focus:ring-blue-300'
+              className='border-gray-600 bg-gray-700 pl-10 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500'
             />
           </div>
         </div>
 
         {/* Stats rápidas */}
-        <div className='border-b border-slate-200 bg-slate-50 p-4'>
-          <div className='grid grid-cols-2 gap-4 text-center'>
-            <div>
-              <p className='text-2xl font-bold text-blue-600'>
+        <div className='border-b border-gray-700 bg-gray-800 p-3'>
+          <div className='grid grid-cols-2 gap-3 text-center'>
+            <div className='rounded-lg bg-gray-700 p-2'>
+              <p className='text-lg font-bold text-blue-400'>
                 {filteredPacks.length}
               </p>
-              <p className='text-xs text-slate-600'>Conversaciones</p>
+              <p className='text-xs text-gray-400'>Total</p>
             </div>
-            <div>
-              <p className='text-2xl font-bold text-green-600'>
+            <div className='rounded-lg bg-gray-700 p-2'>
+              <p className='text-lg font-bold text-green-400'>
                 {filteredPacks.filter((p) => p.has_messages).length}
               </p>
-              <p className='text-xs text-slate-600'>Con Mensajes</p>
+              <p className='text-xs text-gray-400'>Activas</p>
             </div>
           </div>
         </div>
 
         {/* Lista de conversaciones */}
-        <ScrollArea className='flex-1'>
-          <div className='space-y-2 p-3'>
+        <div className='flex-1 overflow-y-auto'>
+          <div className='space-y-1 p-2'>
             {filteredPacks.map((pack) => (
-              <Card
+              <div
                 key={pack.id}
-                className={`cursor-pointer border-0 transition-all duration-200 hover:scale-[1.02] hover:shadow-xl ${
+                className={`cursor-pointer rounded-lg p-3 transition-all duration-200 hover:bg-gray-700 ${
                   selectedPack?.id === pack.id
-                    ? 'bg-gradient-to-r from-blue-50 to-blue-100 shadow-lg ring-2 ring-blue-400'
-                    : 'bg-white shadow-sm hover:bg-slate-50'
+                    ? 'border-l-4 border-blue-500 bg-gray-700'
+                    : 'hover:bg-gray-800'
                 }`}
                 onClick={() => {
                   setSelectedPack(pack);
                   loadMessages(pack);
                 }}
               >
-                <CardContent className='p-4'>
-                  {/* Header del pack */}
-                  <div className='mb-3 flex items-start justify-between'>
-                    <div className='flex items-center space-x-3'>
-                      <div className='relative'>
-                        <Avatar className='h-10 w-10 shadow-md ring-2 ring-white'>
-                          <AvatarFallback className='bg-gradient-to-br from-blue-500 to-blue-600 text-sm font-bold text-white'>
-                            {pack.buyer.nickname.charAt(0).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        {pack.has_messages && (
-                          <div className='absolute -top-1 -right-1 h-4 w-4 rounded-full bg-green-500 ring-2 ring-white' />
-                        )}
+                {/* Header del pack */}
+                <div className='mb-2 flex items-start justify-between'>
+                  <div className='flex items-center space-x-3'>
+                    <div className='relative'>
+                      <div className='flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600 text-sm font-bold text-white'>
+                        {pack.buyer.nickname.charAt(0).toUpperCase()}
                       </div>
-                      <div className='min-w-0 flex-1'>
-                        <p className='truncate text-sm font-semibold text-slate-900'>
-                          {pack.buyer.nickname}
-                        </p>
-                        <p className='font-mono text-xs text-slate-500'>
-                          #{pack.order_id || pack.id}
-                        </p>
-                      </div>
+                      {pack.has_messages && (
+                        <div className='absolute -top-1 -right-1 h-3 w-3 rounded-full bg-green-500' />
+                      )}
                     </div>
-                    <div className='text-right'>
-                      <p className='text-xs font-medium text-slate-500'>
-                        {formatDate(pack.date_created)}
+                    <div className='min-w-0 flex-1'>
+                      <p className='truncate text-sm font-medium text-white'>
+                        {pack.buyer.nickname}
                       </p>
-                      <div className='mt-1 flex justify-end'>
-                        <div
-                          className={`h-3 w-3 rounded-full shadow-sm ${getStatusColor(pack.order_status)}`}
-                          title={pack.order_status}
-                        />
-                      </div>
+                      <p className='font-mono text-xs text-gray-400'>
+                        #{pack.order_id || pack.id}
+                      </p>
                     </div>
                   </div>
-
-                  {/* Producto */}
-                  {pack.product_info && (
-                    <div className='mb-3 flex items-center space-x-3 rounded-lg bg-slate-50 p-3'>
-                      <img
-                        src={
-                          pack.product_info.thumbnail ||
-                          '/placeholder-product.svg'
-                        }
-                        alt={pack.product_info.title}
-                        className='h-12 w-12 rounded-md object-cover shadow-sm ring-1 ring-slate-200'
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = '/placeholder-product.svg';
-                        }}
+                  <div className='text-right'>
+                    <p className='text-xs text-gray-400'>
+                      {formatDate(pack.date_created)}
+                    </p>
+                    <div className='mt-1 flex justify-end'>
+                      <div
+                        className={`h-2 w-2 rounded-full ${getStatusColor(pack.order_status)}`}
+                        title={pack.order_status}
                       />
-                      <div className='min-w-0 flex-1'>
-                        <p className='mb-1 truncate text-sm font-medium text-slate-900'>
-                          {pack.product_info.title}
-                        </p>
-                        <p className='text-sm font-bold text-emerald-600'>
-                          {formatPrice(pack.total_amount, pack.currency_id)}
-                        </p>
-                      </div>
-                      {pack.product_info.quantity > 1 && (
-                        <Badge
-                          variant='secondary'
-                          className='bg-blue-100 text-xs text-blue-700'
-                        >
-                          ×{pack.product_info.quantity}
-                        </Badge>
-                      )}
                     </div>
-                  )}
+                  </div>
+                </div>
 
-                  {/* Footer */}
-                  <div className='flex items-center justify-between'>
-                    <div className='flex items-center space-x-2'>
-                      <Badge
-                        variant={pack.has_messages ? 'default' : 'secondary'}
-                        className={`text-xs font-medium ${
-                          pack.has_messages
-                            ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                            : 'bg-slate-100 text-slate-600'
-                        }`}
-                      >
-                        <MessageSquare className='mr-1 h-3 w-3' />
-                        {pack.message_count}
-                      </Badge>
-                      {pack.message_count > 5 && (
-                        <Badge
-                          variant='outline'
-                          className='border-orange-300 text-xs text-orange-600'
-                        >
-                          Activa
-                        </Badge>
-                      )}
+                {/* Producto */}
+                {pack.product_info && (
+                  <div className='mb-2 flex items-center space-x-2 rounded bg-gray-800 p-2'>
+                    <img
+                      src={
+                        pack.product_info.thumbnail ||
+                        '/placeholder-product.svg'
+                      }
+                      alt={pack.product_info.title}
+                      className='h-8 w-8 rounded object-cover'
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = '/placeholder-product.svg';
+                      }}
+                    />
+                    <div className='min-w-0 flex-1'>
+                      <p className='truncate text-xs text-gray-300'>
+                        {pack.product_info.title}
+                      </p>
+                      <p className='text-xs font-semibold text-green-400'>
+                        {formatPrice(pack.total_amount, pack.currency_id)}
+                      </p>
                     </div>
-                    <Badge
-                      variant='outline'
-                      className={`text-xs font-medium capitalize ${
-                        pack.order_status === 'paid'
-                          ? 'border-green-300 text-green-700'
-                          : pack.order_status === 'pending'
-                            ? 'border-yellow-300 text-yellow-700'
-                            : pack.order_status === 'cancelled'
-                              ? 'border-red-300 text-red-700'
-                              : 'border-slate-300 text-slate-600'
+                  </div>
+                )}
+
+                {/* Footer */}
+                <div className='flex items-center justify-between'>
+                  <div className='flex items-center space-x-2'>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                        pack.has_messages
+                          ? 'bg-green-900 text-green-300'
+                          : 'bg-gray-700 text-gray-400'
                       }`}
                     >
-                      {pack.order_status}
-                    </Badge>
+                      <MessageSquare className='mr-1 h-3 w-3' />
+                      {pack.message_count}
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
+                  <span
+                    className={`inline-flex rounded-full px-2 py-1 text-xs font-medium capitalize ${
+                      pack.order_status === 'paid'
+                        ? 'bg-green-900 text-green-300'
+                        : pack.order_status === 'pending'
+                          ? 'bg-yellow-900 text-yellow-300'
+                          : pack.order_status === 'cancelled'
+                            ? 'bg-red-900 text-red-300'
+                            : 'bg-gray-700 text-gray-400'
+                    }`}
+                  >
+                    {pack.order_status}
+                  </span>
+                </div>
+              </div>
             ))}
 
             {filteredPacks.length === 0 && (
-              <div className='py-12 text-center'>
-                <MessageSquare className='mx-auto mb-4 h-12 w-12 text-slate-300' />
-                <p className='text-sm text-slate-500'>
-                  No se encontraron conversaciones
+              <div className='py-8 text-center'>
+                <MessageSquare className='mx-auto mb-3 h-8 w-8 text-gray-600' />
+                <p className='text-sm text-gray-400'>
+                  {searchTerm
+                    ? 'No se encontraron conversaciones'
+                    : 'No hay conversaciones'}
                 </p>
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
       </div>
 
-      {/* ÁREA PRINCIPAL - Chat */}
-      <div className='flex flex-1 flex-col bg-white'>
+      {/* ÁREA DE CHAT */}
+      <div className='flex flex-1 flex-col bg-gray-900'>
         {selectedPack ? (
           <>
-            {/* Header del chat */}
-            <div className='border-b border-slate-200 bg-white shadow-sm'>
-              <ChatHeader pack={selectedPack} formatPrice={formatPrice} />
-            </div>
+            {/* Chat Header */}
+            <ChatHeader pack={selectedPack} formatPrice={formatPrice} />
 
             {/* Mensajes */}
-            <div className='flex-1 overflow-hidden bg-gradient-to-b from-slate-50/30 to-white'>
-              <ChatMessages
-                pack={selectedPack}
-                messages={messages}
-                messagesEndRef={messagesEndRef}
-                formatTime={formatTime}
-                getMessageStatusIcon={getMessageStatusIcon}
-                loading={messagesLoading}
-              />
-            </div>
+            <div className='flex min-h-0 flex-1 flex-col'>
+              <div className='flex-1 space-y-4 overflow-y-auto p-4'>
+                {messagesLoading ? (
+                  <div className='flex items-center justify-center py-8'>
+                    <div className='text-center'>
+                      <div className='mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent'></div>
+                      <p className='text-sm text-gray-400'>
+                        Cargando mensajes...
+                      </p>
+                    </div>
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div className='flex items-center justify-center py-12'>
+                    <div className='text-center'>
+                      <div className='mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-800'>
+                        <MessageSquare className='h-6 w-6 text-gray-500' />
+                      </div>
+                      <h3 className='mb-2 text-lg font-medium text-gray-300'>
+                        Sin mensajes aún
+                      </h3>
+                      <p className='mb-4 max-w-sm text-sm text-gray-500'>
+                        Inicia la conversación con este cliente
+                      </p>
+                      <div className='rounded-lg bg-blue-900/50 px-3 py-2 text-xs text-blue-300'>
+                        💡 Tip: Un saludo siempre es buen comienzo
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {messages.map((message, index) => {
+                      const isFromSeller =
+                        message.from.user_id ===
+                        selectedPack.seller.id.toString();
 
-            {/* Input de envío */}
-            <div className='border-t border-slate-200 bg-white p-4 shadow-lg'>
-              <ChatInput
-                value={newMessage}
-                onChange={setNewMessage}
-                onSend={sendMessage}
-                sending={sendingMessage}
-              />
+                      return (
+                        <div
+                          key={`${message.message_id.value}-${index}`}
+                          className={`flex items-end space-x-2 ${isFromSeller ? 'flex-row-reverse space-x-reverse' : ''}`}
+                        >
+                          {/* Avatar */}
+                          <div
+                            className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
+                              isFromSeller
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-600 text-gray-200'
+                            }`}
+                          >
+                            {isFromSeller
+                              ? 'T'
+                              : selectedPack.buyer.nickname
+                                  .charAt(0)
+                                  .toUpperCase()}
+                          </div>
+
+                          {/* Mensaje */}
+                          <div className={`max-w-md`}>
+                            <div
+                              className={`rounded-2xl px-3 py-2 ${
+                                isFromSeller
+                                  ? 'rounded-br-md bg-blue-600 text-white'
+                                  : 'rounded-bl-md bg-gray-700 text-gray-100'
+                              }`}
+                            >
+                              <p className='text-sm'>{message.text}</p>
+                            </div>
+
+                            {/* Metadata */}
+                            <div
+                              className={`mt-1 flex items-center space-x-1 text-xs text-gray-500 ${
+                                isFromSeller ? 'justify-end' : 'justify-start'
+                              }`}
+                            >
+                              <span>
+                                {formatTime(message.message_date.received)}
+                              </span>
+                              {isFromSeller && (
+                                <span className='flex items-center'>
+                                  {getMessageStatusIcon(message.status)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div ref={messagesEndRef} />
+                  </>
+                )}
+              </div>
+
+              {/* Input de mensaje */}
+              <div className='border-t border-gray-700 bg-gray-800 p-4'>
+                <div className='flex items-end space-x-3'>
+                  <div className='flex-1'>
+                    <textarea
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          sendMessage();
+                        }
+                      }}
+                      placeholder='Escribe tu mensaje...'
+                      disabled={sendingMessage}
+                      className='w-full resize-none rounded-lg border border-gray-600 bg-gray-700 px-3 py-2 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none'
+                      rows={2}
+                    />
+                  </div>
+                  <button
+                    onClick={sendMessage}
+                    disabled={!newMessage.trim() || sendingMessage}
+                    className={`rounded-lg p-3 transition-all duration-200 ${
+                      newMessage.trim() && !sendingMessage
+                        ? 'transform bg-blue-600 text-white hover:scale-105 hover:bg-blue-700'
+                        : 'cursor-not-allowed bg-gray-600 text-gray-400'
+                    }`}
+                  >
+                    {sendingMessage ? (
+                      <div className='h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent'></div>
+                    ) : (
+                      <Send className='h-4 w-4' />
+                    )}
+                  </button>
+                </div>
+
+                {/* Tips */}
+                <div className='mt-2 flex items-center justify-between text-xs text-gray-500'>
+                  <span>Enter para enviar • Shift+Enter para nueva línea</span>
+                  <span
+                    className={`font-mono ${newMessage.length > 300 ? 'text-orange-400' : newMessage.length > 350 ? 'text-red-400' : ''}`}
+                  >
+                    {newMessage.length}/350
+                  </span>
+                </div>
+              </div>
             </div>
           </>
         ) : (
-          /* Estado sin conversación seleccionada */
-          <div className='flex flex-1 items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100'>
-            <div className='p-8 text-center'>
-              <div className='mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-blue-200'>
-                <MessageSquare className='h-10 w-10 text-blue-500' />
+          <div className='flex h-full items-center justify-center'>
+            <div className='text-center'>
+              <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gray-800'>
+                <MessageSquare className='h-8 w-8 text-gray-600' />
               </div>
-              <h3 className='mb-3 text-xl font-semibold text-slate-900'>
-                💬 Sistema de Mensajería
+              <h3 className='mb-2 text-lg font-medium text-gray-300'>
+                Selecciona una conversación
               </h3>
-              <p className='mx-auto max-w-md text-sm leading-relaxed text-slate-600'>
-                Selecciona una conversación de la lista para comenzar a chatear
-                con tus clientes. Gestiona todas tus comunicaciones post-venta
-                de forma eficiente.
+              <p className='text-sm text-gray-500'>
+                Elige una conversación del panel izquierdo para comenzar
               </p>
-              <div className='mt-6 flex items-center justify-center space-x-6 text-xs text-slate-500'>
-                <div className='flex items-center space-x-1'>
-                  <div className='h-2 w-2 rounded-full bg-green-500'></div>
-                  <span>En línea</span>
-                </div>
-                <div className='flex items-center space-x-1'>
-                  <div className='h-2 w-2 rounded-full bg-blue-500'></div>
-                  <span>Mensajes nuevos</span>
-                </div>
-                <div className='flex items-center space-x-1'>
-                  <div className='h-2 w-2 rounded-full bg-orange-500'></div>
-                  <span>Conversaciones activas</span>
-                </div>
-              </div>
             </div>
           </div>
         )}
