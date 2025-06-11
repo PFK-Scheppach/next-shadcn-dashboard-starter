@@ -142,7 +142,7 @@ const ChatBubbleTimestamp: React.FC<ChatBubbleTimestampProps> = ({
 );
 
 // ChatBubbleAction
-type ChatBubbleActionProps = ButtonProps & {
+type ChatBubbleActionProps = ComponentProps<typeof Button> & {
   icon: React.ReactNode;
 };
 
