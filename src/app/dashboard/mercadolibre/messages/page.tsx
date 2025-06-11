@@ -1,23 +1,30 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { Input } from '@/components/ui/input';
-
+import { useState, useEffect, useRef } from 'react';
 import {
   Search,
   MessageSquare,
-  Check,
-  CheckCheck,
   Send,
-  X
+  ArrowDown,
+  X,
+  CheckCheck
 } from 'lucide-react';
-
-import ChatHeader from '@/components/messages/ChatHeader';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import ChatHeader from '@/components/messages/ChatHeader';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { AnimatePresence, motion } from 'framer-motion';
-import { useCallback } from 'react';
+
+// shadcn-chat components
+import {
+  ChatBubble,
+  ChatBubbleAvatar,
+  ChatBubbleMessage,
+  ChatBubbleTimestamp
+} from '@/components/ui/chat/chat-bubble';
+import { ChatInput } from '@/components/ui/chat/chat-input';
+import { ChatMessageList } from '@/components/ui/chat/chat-message-list';
 
 interface Pack {
   id: string;
